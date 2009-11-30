@@ -1,0 +1,4 @@
+build/*
+pyhttpc.egg-info/*
+*.so
+*.pyc
