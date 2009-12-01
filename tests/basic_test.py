@@ -5,6 +5,8 @@ class TestParser(pyhttpc.Parser):
 
     def __init__(self):
         self.fields = {}
+        self.was_field = False
+        self.prev_field = None
 
     def on_message_begin(self):
         self.began = True
@@ -25,10 +27,18 @@ class TestParser(pyhttpc.Parser):
         self.fragment = frag
 
     def on_header_field(self, field):
-        self.fields[field] = True
+        if self.was_field:
+            self.prev_field += field
+        else:
+            self.prev_field = field
+        self.was_field = True
 
     def on_header_value(self, value):
-        pass
+        if self.was_field:
+            self.fields[self.prev_field] = value
+        else:
+            self.fields[self.prev_field] += value
+        self.was_field = False
     
     def on_headers_complete(self):
         self.headers_complete = True
@@ -45,23 +55,23 @@ def test_on_url(mesg):
     """\
     PUT /stuff/here?foo=bar#baz HTTP/1.0\r
     Server: http://127.0.0.1:5984\r
-    If-Match: "foobar" "foobar2"\r
-    If-None-Match: "baz"\r
-    If-None-Match: "bam"\r
     Content-Type: application/json\r
     Content-Length: 14\r
     \r
     {"nom": "nom"}
     """
     p = TestParser()
-    print p.parse_requests(mesg)
+    p.parse_requests(mesg)
     t.eq(p.began, True)
     t.eq(p.method, "PUT")
     t.eq(p.path, "/stuff/here")
     t.eq(p.qs, "foo=bar")
     t.eq(p.fragment, "baz")
-    t.eq(p.fields, {"If-Match": True, "If-None-Match": True,
-        "Server": True, "Content-Type": True, "Content-Length": True})
+    t.eq(p.fields, {
+        "Server": "http://127.0.0.1:5984",
+        "Content-Type": "application/json",
+        "Content-Length": "14"
+    })
     t.eq(p.body, '{"nom": "nom"}')
     t.eq(p.done, True)
     t.eq(p.keep_alive, False)
