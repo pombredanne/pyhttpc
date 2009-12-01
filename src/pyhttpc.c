@@ -1,7 +1,7 @@
 
 #include <Python.h>
 #include "structmember.h"
-#include "http_parser.h"
+#include "http-parser/http_parser.h"
 
 #ifndef PyMODINIT_FUNC
 #define PyMODINIT_FUNC void
@@ -69,6 +69,13 @@ on_message_begin(http_parser* parser)
 {
     PyObject* self = (PyObject*) parser->data;
     return no_args(self, get_cb(self, "on_message_begin"));
+}
+
+static int
+on_method(http_parser* parser, const char* at, size_t length)
+{
+    PyObject* self = (PyObject*) parser->data;
+    return with_args(self, get_cb(self, "on_method"), at, length);
 }
 
 static int
@@ -148,6 +155,7 @@ Parser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     self->parser->data = (void*) self;
 
     self->parser->on_message_begin = on_message_begin;
+    self->parser->on_method = on_method;
     self->parser->on_path = on_path;
     self->parser->on_query_string = on_query_string;
     self->parser->on_url = on_url;

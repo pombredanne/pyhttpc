@@ -13,17 +13,9 @@ http://github.com/davisp/pyhttpc/
 http://github.com/ry/http-parser/
 """,
 
-import glob
-import os
-import subprocess as sp
-import sys
-from distutils.dist import Distribution
 import ez_setup
 ez_setup.use_setuptools()
 from setuptools import setup, Extension
-
-def find_sources(extensions=".c"):
-    return glob.glob("./src/*.c")
 
 setup(
     name = "pyhttpc",
@@ -54,7 +46,10 @@ setup(
     ],
 
     ext_modules = [
-        Extension("pyhttpc", sources=find_sources())
+        Extension("pyhttpc", sources=[
+            "./src/pyhttpc.c",
+            "./src/http-parser/http_parser.c"
+        ])
     ],
 
     test_suite = 'nose.collector',

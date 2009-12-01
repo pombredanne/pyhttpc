@@ -9,6 +9,9 @@ class TestParser(pyhttpc.Parser):
     def on_message_begin(self):
         self.began = True
 
+    def on_method(self, method):
+        self.method = method;
+
     def on_path(self, path):
         self.path = path
 
@@ -53,6 +56,7 @@ def test_on_url(mesg):
     p = TestParser()
     print p.parse_requests(mesg)
     t.eq(p.began, True)
+    t.eq(p.method, "PUT")
     t.eq(p.path, "/stuff/here")
     t.eq(p.qs, "foo=bar")
     t.eq(p.fragment, "baz")
