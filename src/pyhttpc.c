@@ -186,7 +186,7 @@ copy_buf(Parser* p, const char* buf, size_t length)
         free(tmp);
     }
     
-    strncat(p->buf, buf, length);
+    memcpy(p->buf + p->bufused, buf, length);
     p->bufused += length;
     return 0;
 }

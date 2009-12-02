@@ -18,4 +18,9 @@ def test_on_url(mesg):
     t.eq(p.request.method, "PUT")
     t.eq(p.request.path, "/stuff/here")
     t.eq(p.request.query_string, "foo=bar")
+    t.eq(sorted(p.request.headers), [
+        ("Content-Length", "15"),
+        ("Content-Type", "application/json"),
+        ("Server", "http://127.0.0.1:5984")
+    ])
     t.eq(p.request.body, '{"nom": "nom"}\n')
