@@ -1,0 +1,4 @@
+run setup.py test
+bt
+continue
+bt
