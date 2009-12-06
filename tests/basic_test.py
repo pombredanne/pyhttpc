@@ -11,7 +11,6 @@ def test_on_url(mesg):
     \r
     {"nom": "nom"}
     """
-    print '%r' % mesg
     p = pyhttpc.Parser()
     parsed = p.parse_requests(mesg)
     t.eq(len(mesg), parsed)

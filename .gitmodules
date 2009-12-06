@@ -1,3 +1,0 @@
-[submodule "src/http-parser"]
-	path = src/http-parser
-	url = git://github.com/davisp/http-parser.git

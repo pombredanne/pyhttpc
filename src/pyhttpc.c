@@ -415,7 +415,11 @@ Parser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     self->buf = NULL;
 
     self->parser = (http_parser*) malloc(sizeof(http_parser));
-    if(self->parser == NULL) goto error;
+    if(self->parser == NULL)
+    {
+        PyErr_NoMemory();
+        goto error;
+    }
 
     self->req = NULL;
     self->field = NULL;
@@ -426,6 +430,7 @@ Parser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     self->buf = (char*) malloc(self->buflen * sizeof(char));
     if(self->buf == NULL)
     {
+        PyErr_NoMemory();
         goto error;
     }
     
