@@ -253,7 +253,7 @@ http_init_parser(ushort type)
     ret->vminor = 0;
     ret->content_length = -1;
     ret->content_read = -1;
-    ret->is_request = type == REQUEST_PARSER ? 1 : 0;
+    ret->is_request = type == HTTP_REQUEST_PARSER ? 1 : 0;
     ret->state = ST_REQ_INIT;
     ret->stateact = HTTP_CONTINUE;
     ret->stateptr = NULL;
