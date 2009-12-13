@@ -16,8 +16,9 @@ from the socket or read the body entirely. Perhaps make that configurable?
 Building
 --------
 ::
+
     $ git clone git://github.com/davisp/pyhttpc.git
     $ python setup.py build
     $ python setup.py test
 
-.. _http_parser: http://github.com/ry/http-parser
+.. _http-parser: http://github.com/ry/http-parser
