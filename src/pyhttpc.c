@@ -15,107 +15,112 @@ typedef struct {
     // CObject around http_parser.
     PyObject* parser;
 
+    // Done reading?
+    int done;
+
     // Data source
-    PyObject* iter;
-    PyObject* handle;
-    PyObject* buffer;
+    int fd;
+    uchar* buf_data;
+    size_t buf_len;
+    size_t buf_used;
+
     PyObject* field;
 } Message;
 
 static int
 Message_fill_buffer(Message* self, http_parser* parser)
 {
-    PyObject* str = NULL;
     const uchar* buf = NULL;
-    Py_ssize_t len = 0;
-    int ret = -1;
+    uchar* tmp = NULL;
+    size_t len = 0;
+    size_t req_len = 0;
+    ssize_t status = -1;
 
-    // We may not have completely drained the
-    // previous buffer, store the contents here
-    // so we can prepend it when we finish the
-    // next parsed entity.
-    len = (Py_ssize_t) http_get_buffer(parser, &buf);
-    if(len > 0)
+    // We have to save what's left in the buffer
+    // in the likely case that we haven't ended
+    // a parsing at exactly the last byte in the
+    // buffer.
+    
+    len = http_get_buffer(parser, &buf);
+    if(len < self->buf_len - self->buf_used)
     {
-        str = PyString_FromStringAndSize((char*) buf, len);
-        if(str == NULL) goto error;
-
-        if(self->buffer != NULL)
+        memcpy(self->buf_data+self->buf_used, buf, len);
+        self->buf_used += len;
+    }
+    else
+    {
+        req_len = self->buf_len + 4096;
+        while(self->buf_used + len > req_len) req_len += 4096;
+        tmp = (uchar*) malloc(req_len * sizeof(uchar));
+        if(tmp == NULL)
         {
-            PyString_ConcatAndDel(&(self->buffer), str);
-            str = NULL;
-            if(self->buffer == NULL) goto error;
+            PyErr_NoMemory();
+            goto error;
         }
-        else
-        {
-            self->buffer = str;
-            str = NULL;
-        }
+        
+        memcpy(tmp, self->buf_data, self->buf_used);
+        memcpy(tmp+self->buf_used, buf, len);
+        self->buf_len = req_len;
+        self->buf_used += len;
+        free(self->buf_data);
+        fprintf(stderr, "SETTING: %p\n", tmp);
+        self->buf_data = tmp;
+        tmp = NULL;
+    }
+    free((uchar*) buf);    
+
+    // Now fill a new buffer for the parser.
+    tmp = (uchar*) malloc(4096 * sizeof(uchar));
+    if(tmp == NULL)
+    {
+        PyErr_NoMemory();
+        goto error;
     }
 
-    if(self->iter == NULL)
+    WHERE;
+    status = read(self->fd, tmp, 4096);
+    if(status < 0)
     {
-        PyErr_SetNone(PyExc_StopIteration);
+        PyErr_SetFromErrno(PyExc_IOError);
         goto error;
     }
     
-    str = PyIter_Next(self->iter);
-    if(str == NULL)
-    {
-        PyErr_SetNone(PyExc_StopIteration);
-        goto error;
-    }
-    
-    // Set the parser buffer.
-    if(!PyString_Check(str))
-    {
-        PyErr_SetString(PyExc_TypeError, "Source iterator yielded non-string.");
-        goto error;
-    }
-    
-    if(PyString_AsStringAndSize(str, (char**) &buf, &len) < 0) goto error;
-    
-    // Store a handle to the string object so it doesn't
-    // get deallocated out from under us.
-    Py_XDECREF(self->handle);
-    self->handle = str;
-    
-    http_set_buffer(parser, buf, (size_t) len);
+    http_set_buffer(parser, tmp, (size_t) status);
 
-    ret = 0;
-    goto success;
+    return (int) status;
 
 error:
-    Py_XDECREF(str);
-success:
-    return ret;
+    return -1;
 }
 
 static PyObject*
 Message_mk_value(Message* self, http_parser* parser)
 {
     PyObject* ret = NULL;
-    char* data = (char*) parser->data;
-    Py_ssize_t length = (Py_ssize_t) parser->length;
-    
-    ret = PyString_FromStringAndSize(data, length);
-    if(ret == NULL) goto error;
+    uchar* comp_buf = NULL;
+    size_t comp_len = -1;
 
-    // Combine the new value with any previous data
-    // we had in a partial buffer.
-    if(self->buffer != NULL && length == 0)
+    if(self->buf_data != NULL)
     {
-        ret = self->buffer;
-        self->buffer = NULL;
+        comp_len = self->buf_used + parser->length;
+        comp_buf = (uchar*) malloc(comp_len * sizeof(uchar));
+        if(comp_buf == NULL)
+        {
+            PyErr_NoMemory();
+            goto error;
+        }
+        memcpy(comp_buf, self->buf_data, self->buf_used);
+        memcpy(comp_buf, parser->data, parser->length);
+        self->buf_used = 0;
     }
-    else if(self->buffer != NULL)
+    else
     {
-        PyString_ConcatAndDel(&(self->buffer), ret);
-        ret = NULL;
-        if(self->buffer == NULL) goto error;
-        ret = self->buffer;
-        self->buffer = NULL;
+        comp_buf = (uchar*) parser->data;
+        comp_len = parser->length;
     }
+    
+    ret = PyString_FromStringAndSize((char*) comp_buf, comp_len);
+    if(ret == NULL) goto error;
 
     goto success;
 
@@ -123,6 +128,7 @@ error:
     Py_XDECREF(ret);
     ret = NULL;
 success:
+    if(comp_buf != parser->data) free(comp_buf);
     return ret;
 }
 
@@ -160,21 +166,24 @@ Message_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
     Message* self = NULL;
     PyObject* parser = NULL;
-    PyObject* iter = NULL;
+    int fd = -1;
     
-    if(!PyArg_ParseTuple(args, "OO", &parser, &iter)) goto error;
+    if(!PyArg_ParseTuple(args, "Oi", &parser, &fd)) goto error;
+    if(parser == NULL || fd < 0) goto error;
     
     self = (Message*) type->tp_alloc(type, 0);
     if(self == NULL) goto error;
 
     Py_INCREF(parser);
     self->parser = parser;
-    
-    Py_INCREF(iter);
-    self->iter = iter;
+    self->fd = fd;
 
-    self->handle = NULL;
-    self->buffer = NULL;
+    self->done = 0;
+
+    self->buf_data = NULL;
+    self->buf_len = 0;
+    self->buf_used = 0;
+
     self->field = NULL;
 
     self->headers = PyList_New(0);
@@ -199,10 +208,7 @@ Message_dealloc(Message* self)
 {
     Py_XDECREF(self->headers);
     Py_XDECREF(self->parser);
-    Py_XDECREF(self->iter);
-    Py_XDECREF(self->handle);
-    Py_XDECREF(self->buffer);
-    Py_XDECREF(self->field);
+    if(self->buf_data != NULL) free(self->buf_data);
 }
 
 static PyObject*
@@ -210,10 +216,16 @@ Message_read(Message* self, PyObject* args, PyObject* kwargs)
 {
     unsigned short rval;
     http_parser* p = NULL;
-    PyObject* ret = PyString_FromString("");
+    PyObject* ret = NULL;
     if(ret == NULL) return NULL;
     PyObject* val = NULL;
 
+    if(self->done)
+    {
+        Py_RETURN_NONE;
+    }
+
+    ret = PyString_FromString("");
     p = PyCObject_AsVoidPtr(self->parser);
     if(p == NULL) goto error;
     
@@ -229,7 +241,7 @@ Message_read(Message* self, PyObject* args, PyObject* kwargs)
                 goto error;
 
             case HTTP_CONTINUE:
-                if(Message_fill_buffer((Message*) self, p) < 0) goto error;
+                if(Message_fill_buffer((Message*) self, p) <= 0) goto error;
                 break;
 
             case HTTP_BODY:
@@ -241,6 +253,7 @@ Message_read(Message* self, PyObject* args, PyObject* kwargs)
                 break;
             
             case HTTP_DONE:
+                self->done = 1;
                 goto success;
             
             default:
@@ -362,6 +375,7 @@ Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
     unsigned short rval;
     http_parser* p;
+    int status = -1;
     
     Request* self = (Request*) Message_new(type, args, kwargs);
     if(self == NULL) goto error;
@@ -376,14 +390,20 @@ Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     self->port = NULL;
     self->path = NULL;
     self->query_string = NULL;
-    self->path = NULL;
+    self->fragment = NULL;
     
-    if(Message_fill_buffer((Message*) self, p) < 0) goto error;
+    status = Message_fill_buffer((Message*) self, p);
+    if(status < 0) goto error;
+    if(status == 0)
+    {
+        PyErr_SetNone(PyExc_StopIteration);
+        goto error;
+    }
 
     while(1)
     {
         rval = http_run_parser(p);
-        //fprintf(stderr, "%u\n", rval);
+        fprintf(stderr, "%u\n", rval);
 
         switch(rval)
         {
@@ -392,7 +412,7 @@ Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
                 goto error;
 
             case HTTP_CONTINUE:
-                if(Message_fill_buffer((Message*) self, p) < 0) goto error;
+                if(Message_fill_buffer((Message*) self, p) <= 0) goto error;
                 break;
             
             case HTTP_METHOD:
@@ -452,6 +472,7 @@ Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
             case HTTP_DONE:
                 self->version = Py_BuildValue("(HH)", p->vmajor, p->vminor);
                 if(self->version == NULL) goto error;
+                WHERE;
                 goto success;
             
             default:
@@ -558,7 +579,8 @@ PyTypeObject RequestType = {
 typedef struct {
     PyObject_HEAD
     PyObject* parser;
-    PyObject* iter;
+    PyObject* fileobj;
+    int fd;
     PyTypeObject* mesg_type;
 } MessageIter;
 
@@ -566,7 +588,7 @@ void
 MessageIter_dealloc(MessageIter* self)
 {
     Py_XDECREF(self->parser);
-    Py_XDECREF(self->iter);
+    Py_XDECREF(self->fileobj);
 }
 
 PyObject*
@@ -582,7 +604,7 @@ MessageIter_ITER_NEXT(MessageIter* self)
     PyObject* tpl = NULL;
     PyObject* req = NULL;
     
-    tpl = Py_BuildValue("OO", self->parser, self->iter);
+    tpl = Py_BuildValue("Oi", self->parser, self->fd);
     if(tpl == NULL) return NULL;
 
     req = PyObject_CallObject((PyObject*) self->mesg_type, tpl);
@@ -631,33 +653,38 @@ PyObject*
 parse_requests(PyObject* ignored, PyObject* args)
 {
     MessageIter* self = NULL;
-    PyObject* iter = NULL;
+    PyObject* fileobj = NULL;
     http_parser* parser = NULL;
     
-    if(!PyArg_ParseTuple(args, "O", &iter)) goto error;
-
-    if(!PyIter_Check(iter))
-    {
-        PyErr_SetString(PyExc_TypeError, "source must be an iterator.");
-        goto error;
-    }
+    if(!PyArg_ParseTuple(args, "O", &fileobj)) goto error;
     
     self = PyObject_New(MessageIter, &MessageIterType);
     if(self == NULL) goto error;
 
+    self->parser = NULL;
+    self->fileobj = NULL;
     self->mesg_type = (PyTypeObject*) &RequestType;
 
-    Py_INCREF(iter);
-    self->iter = iter;
+    self->fileobj = fileobj;
+    Py_INCREF(self->fileobj);
+    
+    self->fd = PyObject_AsFileDescriptor(fileobj);
+    if(self->fd < 0)
+    {
+        PyErr_SetString(PyExc_TypeError, "source must be a file descriptor.");
+        goto error;
+    }
 
     parser = http_init_parser(HTTP_REQUEST_PARSER);
     if(parser == NULL) goto error;
+
     self->parser = PyCObject_FromVoidPtr((void*) parser, free);
+    if(parser == NULL) goto error;
 
     return (PyObject*) self;
 
 error:
-    Py_XDECREF(iter);
+    Py_XDECREF(self);
     return NULL;
 }
 

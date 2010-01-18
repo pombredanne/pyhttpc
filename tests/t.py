@@ -9,43 +9,27 @@ import unittest
 
 import pyhttpc
 
-REQUEST = 1
-RESPONSE = 2
+dirname = os.path.dirname(__file__)
 
-def get_source():
-    frames = inspect.stack()
-    srcfile = frames[2][0].f_code.co_filename
-    fname = os.path.splitext(srcfile)[0] + ".http"
+def data_source(fname, eol):
     with open(fname) as handle:
         for line in handle:
-            yield line.rstrip("\r\n") + "\r\n"
+            next = line.rstrip("\r\n") + eol
+            if next == "\r\n":
+                eol = ""
+            yield next
 
-tre = re.compile(r"req\d+")
-def get_tests():
-    ret = []
-    frames = inspect.stack()
-    for g, mem in frames[2][0].f_globals.iteritems():
-        if not inspect.isfunction(mem):
-            continue
-        if not tre.match(g):
-            continue
-        ret.append((g, mem))
-    ret.sort()
-    test_type = frames[2][0].f_globals.get("test_type", None)
-    if test_type is None:
-        raise ValueError("No 'test_type' specified.")
-    return (test_type, ret)
-
-def run_tests():
-    source = get_source()
-    (test_type, tests) = get_tests()
-    if test_type is REQUEST:
-        i = pyhttpc.parse_requests(source)
-    else:
-        raise ValueError("No responses yet...")
-    for (name, test) in tests:
-        test(i.next())
-    raises(StopIteration, i.next)
+class request(object):
+    def __init__(self, name, eol="\r\n"):
+        self.fname = os.path.join(dirname, "requests", name)
+        self.eol = eol
+    def __call__(self, func):
+        def run():
+            src = data_source(self.fname, self.eol)
+            parser = pyhttpc.parse_requests(open(self.fname))
+            func(parser)
+        run.func_name = func.func_name
+        return run
     
 def eq(a, b):
     assert a == b, "%r != %r" % (a, b)
