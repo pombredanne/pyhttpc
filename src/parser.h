@@ -30,6 +30,7 @@ enum ACTION {
     HTTP_HEADERS_DONE,
 
     HTTP_BODY, // 12
+    HTTP_BODY_EOF,
     HTTP_DONE
 };
 

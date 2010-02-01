@@ -208,10 +208,15 @@ state_read(ParserState* state)
     unsigned short rval;
     PyObject* ret = NULL;
     PyObject* val = NULL;
+    int status;
 
     ret = PyString_FromString("");
     if(state->done) return ret;
-    if(state->parser == NULL) goto error;
+    if(state->parser == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "No parser!\n");
+        goto error;
+    }
     
     while(1)
     {
@@ -225,21 +230,45 @@ state_read(ParserState* state)
                 goto error;
 
             case HTTP_CONTINUE:
-                if(state_fill_buffer(state) <= 0) goto error;
+                if(state_fill_buffer(state) < 0)
+                {
+                    PyErr_SetString(PyExc_RuntimeError, "Failed to fill buffer");
+                    goto error;
+                }
                 break;
 
             case HTTP_DONE:
                 state->done = 1;
                 // Fall through
+            case HTTP_BODY_EOF:
+                status = state_fill_buffer(state);
+                if(status > 0)
+                {
+                    state->parser->data = state->parser->buf;
+                    state->parser->length = (size_t) status;
+                }
+                else
+                {
+                    state->done = 1;
+                }
             case HTTP_BODY:
                 val = state_make_value(state);
-                if(val == NULL) goto error;
+                if(val == NULL)
+                {
+                    PyErr_SetString(PyExc_RuntimeError, "Failed to make value\n");
+                    goto error;
+                }
                 PyString_ConcatAndDel(&ret, val);
-                if(ret == NULL) goto error;
-                if(rval == HTTP_DONE) goto success;
+                if(ret == NULL)
+                {
+                    PyErr_SetString(PyExc_RuntimeError, "Failed to concat.");
+                    goto error;
+                }
+                if(state->done) goto success;
                 break;
             
             default:
+                fprintf(stderr, "State: %u\n", rval);
                 PyErr_SetString(PyExc_RuntimeError, "Invalid parser state.");
                 goto error;
         }

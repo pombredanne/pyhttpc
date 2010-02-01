@@ -133,6 +133,8 @@ Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
             case HTTP_DONE:
                 self->state->done = 1;
                 // Fall through!
+            case HTTP_BODY_EOF:
+                // Fall through
             case HTTP_HEADERS_DONE:
                 self->headers = state_get_headers(self->state);
                 if(self->headers == NULL) goto error;

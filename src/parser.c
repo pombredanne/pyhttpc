@@ -626,6 +626,8 @@ http_run_parser(http_parser* p)
                 SUSP_IF(IS_SPACE(ch), ST_HDR_BEFORE_VALUE, HTTP_HEADER_FIELD);
                 SUSP_IF(ch == ':', ST_HDR_VALUE_START, HTTP_HEADER_FIELD);
                 ERROR_IF(!OK_IN_HEADER_FIELD(ch));
+                // Already matched T
+                if(p->hdr_index == 0) p->hdr_index += 1;
                 if(p->hdr_index > TRANSFER_ENCODING_LENGTH)
                 {
                     p->hdr_index = 0;
@@ -681,6 +683,7 @@ http_run_parser(http_parser* p)
                 break;
 
             case ST_HDR_IN_CONTENT_LENGTH_VALUE:
+                p->hdr_state = ST_HDR_IN_CONTENT_LENGTH_VALUE;
                 NEXT_IF(ch == CR, ST_HDR_VALUE_ALMOST_DONE);
                 NEXT_IF(ch == LF, ST_HDR_VALUE_MAYBE_DONE);
                 NEXT_IF(!IS_DIGIT(ch), ST_HDR_VALUE);
@@ -689,6 +692,7 @@ http_run_parser(http_parser* p)
                 break;
                 
             case ST_HDR_IN_CLOSE:
+                p->hdr_state = ST_HDR_IN_CLOSE;
                 NEXT_IF(ch == CR, ST_HDR_VALUE_ALMOST_DONE);
                 NEXT_IF(ch == LF, ST_HDR_VALUE_MAYBE_DONE);
                 if(p->hdr_index < CONNECTION_CLOSE_LENGTH)
@@ -701,6 +705,7 @@ http_run_parser(http_parser* p)
                 JUMP(ST_HDR_VALUE);
             
             case ST_HDR_IN_KEEP_ALIVE:
+                p->hdr_state = ST_HDR_IN_KEEP_ALIVE;
                 NEXT_IF(ch == CR, ST_HDR_VALUE_ALMOST_DONE);
                 NEXT_IF(ch == LF, ST_HDR_VALUE_MAYBE_DONE);
                 if(p->hdr_index < CONNECTION_KEEP_ALIVE_LENGTH)
@@ -714,6 +719,7 @@ http_run_parser(http_parser* p)
                 JUMP(ST_HDR_VALUE);
             
             case ST_HDR_IN_CHUNKED:
+                p->hdr_state = ST_HDR_IN_CHUNKED;
                 NEXT_IF(ch == CR, ST_HDR_VALUE_ALMOST_DONE);
                 NEXT_IF(ch == LF, ST_HDR_VALUE_MAYBE_DONE);
                 if(p->hdr_index < TRANSFER_ENCODING_CHUNKED_LENGTH)
@@ -732,8 +738,6 @@ http_run_parser(http_parser* p)
             
             case ST_HDR_VALUE_MAYBE_DONE:
                 // Checking for a continuation line.
-                SUSP_IF(ch == CR, ST_HDR_ALMOST_DONE, HTTP_HEADER_VALUE);
-                SUSP_IF(ch == LF, ST_HDR_DONE, HTTP_HEADER_VALUE);
                 if(IS_SPACE(ch)) // Not done
                 {
                     if(p->hdr_state == ST_HDR_IN_CONTENT_LENGTH_VALUE)
@@ -752,33 +756,35 @@ http_run_parser(http_parser* p)
                         JUMP(ST_HDR_VALUE);
                     }
                 }
-                else 
+                // Set values for special headers.
+                else if(p->hdr_state == ST_HDR_IN_CLOSE)
                 {
-                    // Finished a header value.
-                    SUSPEND(HTTP_HEADER_VALUE);
-
-                    // Finished parsing a special header?
-                    if(p->hdr_state == ST_HDR_IN_CLOSE)
+                    if(p->flags & FLAG_CONNECTION_KEEP_ALIVE)
                     {
-                        if(p->flags & FLAG_CONNECTION_KEEP_ALIVE)
-                        {
-                            ERROR;
-                        }
-                        p->flags |= FLAG_CONNECTION_CLOSE;
+                        ERROR;
                     }
-                    else if(p->hdr_state == ST_HDR_IN_KEEP_ALIVE)
-                    {
-                        if(p->flags & FLAG_CONNECTION_CLOSE)
-                        {
-                            ERROR;
-                        }
-                        p->flags |= FLAG_CONNECTION_KEEP_ALIVE;
-                    }
-                    else if(p->hdr_state == ST_HDR_IN_CHUNKED)
-                    {
-                        p->flags |= FLAG_CHUNKED;
-                    }
+                    p->flags |= FLAG_CONNECTION_CLOSE;
                 }
+                else if(p->hdr_state == ST_HDR_IN_KEEP_ALIVE)
+                {
+                    if(p->flags & FLAG_CONNECTION_CLOSE)
+                    {
+                        ERROR;
+                    }
+                    p->flags |= FLAG_CONNECTION_KEEP_ALIVE;
+                }
+                else if(p->hdr_state == ST_HDR_IN_CHUNKED)
+                {
+                    p->flags |= FLAG_CHUNKED;
+                }
+
+                p->hdr_index = 0;
+                p->hdr_state = 0;
+
+                SUSP_IF(ch == CR, ST_HDR_ALMOST_DONE, HTTP_HEADER_VALUE);
+                SUSP_IF(ch == LF, ST_HDR_DONE, HTTP_HEADER_VALUE);
+                SUSPEND(HTTP_HEADER_VALUE);
+                
                 // Mark header, return value.
                 INIT_STATE(HTTP_HEADER_FIELD);
                 p->hdr_index = 0;
@@ -790,6 +796,9 @@ http_run_parser(http_parser* p)
                 JUMP(ST_HDR_FIELD);
                 ERROR;
 
+            case ST_HDR_DONE:
+                //ERROR;
+
             case ST_HDR_ALMOST_DONE:
                 ERROR_IF(ch != LF);
 
@@ -798,6 +807,7 @@ http_run_parser(http_parser* p)
                 {
                     INIT_STATE(HTTP_HEADERS_DONE);
                     SUSPEND(HTTP_HEADERS_DONE);
+                    p->content_length = 0;
                     JUMP(ST_CHUNK_SIZE_START);
                 }
                 else if(p->content_length == 0)
@@ -810,6 +820,7 @@ http_run_parser(http_parser* p)
                 {
                     INIT_STATE(HTTP_HEADERS_DONE);
                     SUSPEND(HTTP_HEADERS_DONE);
+                    p->content_read = 0;
                     JUMP(ST_BODY_IDENTITY);
                 }
                 else if(p->is_request && http_should_keep_alive(p))
@@ -824,10 +835,6 @@ http_run_parser(http_parser* p)
                     SUSPEND(HTTP_HEADERS_DONE);
                     JUMP(ST_BODY_IDENTITY_EOF);
                 }
-
-            case ST_HDR_DONE:
-                // Headers must be terminated by \r\n
-                ERROR;
             
             case ST_BODY_IDENTITY:
                 to_read = (ssize_t) p->content_length - p->content_read;
@@ -857,6 +864,7 @@ http_run_parser(http_parser* p)
                 break;
 
             case ST_BODY_IDENTITY_EOF:
+                fprintf(stderr, "ST_BODY_IDENTITY_EOF\n");
                 to_read = p->bufend - p->buf;
                 if(to_read > 0)
                 {
@@ -875,7 +883,8 @@ http_run_parser(http_parser* p)
             case ST_CHUNK_SIZE_START:
                 hv = HEXVAL[(int) ch];
                 if(hv < 0) ERROR;
-                p->content_length += hv;
+                p->content_length = hv;
+                p->content_read = 0;
                 JUMP(ST_CHUNK_SIZE);
             
             case ST_CHUNK_SIZE:
@@ -894,6 +903,7 @@ http_run_parser(http_parser* p)
                 SKIP_IF(ch != LF);
                 if(p->content_length > 0)
                 {
+                    p->content_read = 0;
                     JUMP(ST_CHUNK_DATA);
                 }
                 else
@@ -917,22 +927,24 @@ http_run_parser(http_parser* p)
                 ERROR;
 
             case ST_CHUNK_DATA:
+                to_read = (ssize_t) p->content_length - p->content_read;
+                to_read = MIN(p->bufend - p->buf, to_read);
                 INIT_STATE(HTTP_BODY);
-                to_read = MIN(p->bufend - p->buf, (ssize_t)p->content_length);
                 if(to_read > 0)
                 {
+                    p->content_read += to_read;
                     p->buf += to_read;
                     SUSPEND(HTTP_BODY);
+                    if(p->content_read == p->content_length)
+                    {
+                        JUMP(ST_CHUNK_DATA_ALMOST_DONE);
+                    }
                 }
-                if(to_read == p->content_length)
-                {
-                    p->state = ST_CHUNK_DATA_ALMOST_DONE;
-                }
-                p->content_length -= to_read;
                 break;
 
             case ST_CHUNK_DATA_ALMOST_DONE:
                 NEXT_IF(ch == CR, ST_CHUNK_DATA_DONE);
+                NEXT_IF(ch == LF, ST_CHUNK_SIZE_START);
                 ERROR;
 
             case ST_CHUNK_DATA_DONE:
@@ -944,7 +956,11 @@ http_run_parser(http_parser* p)
 
         }
     }
-    
+
+    if(p->buf == p->bufend && p->state == ST_BODY_IDENTITY_EOF)
+    {
+        return HTTP_BODY_EOF;
+    }
     return p->action;
 
 error:
