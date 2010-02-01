@@ -48,7 +48,8 @@ setup(
     ext_modules = [
         Extension("pyhttpc", sources=[
             "./src/pyhttpc.c",
-            "./src/parser.c"
+            "./src/parser.c",
+            "./src/state.c"
         ])
     ],
 

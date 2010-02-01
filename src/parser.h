@@ -1,4 +1,7 @@
 
+#ifndef PYHTTPC_PARSER_H
+#define PYHTTPC_PARSER_H
+
 #include <unistd.h>
 
 #ifndef uchar
@@ -14,7 +17,7 @@ enum ACTION {
     
     HTTP_CONTINUE,
 
-    HTTP_METHOD,
+    HTTP_METHOD, // 2
     HTTP_SCHEME,
     HTTP_HOST,
     HTTP_PORT,
@@ -22,12 +25,11 @@ enum ACTION {
     HTTP_QS,
     HTTP_FRAGMENT,
 
-    HTTP_HEADER_FIELD,
+    HTTP_HEADER_FIELD, // 9
     HTTP_HEADER_VALUE,
     HTTP_HEADERS_DONE,
 
-    HTTP_BODY,
-
+    HTTP_BODY, // 12
     HTTP_DONE
 };
 
@@ -72,3 +74,5 @@ size_t http_get_buffer(http_parser* parser, const uchar** buf);
 void http_set_buffer(http_parser* parser, const uchar* buf, size_t len);
 ushort http_should_keep_alive(http_parser* parser);
 ushort http_run_parser(http_parser* parser);
+
+#endif // Included parser.h

@@ -36,7 +36,7 @@ enum STATE {
     ST_REQ_HTTP_MINOR,
     ST_REQ_LINE_ALMOST_DONE,
 
-    ST_RES_INIT,
+    ST_RES_INIT, // 28
     ST_RES_H,
     ST_RES_HT,
     ST_RES_HTT,
@@ -49,7 +49,7 @@ enum STATE {
     ST_RES_STATUS,
     ST_RES_STATUS_ALMOST_DONE,
 
-    ST_HDR_FIELD_START,
+    ST_HDR_FIELD_START, // 40
     ST_HDR_FIELD,
     ST_HDR_GENERAL,
     ST_HDR_C,
@@ -62,7 +62,7 @@ enum STATE {
     ST_HDR_IN_TRANSFER_ENCODING,
     ST_HDR_TRANSFER_ENCODING,
 
-    ST_HDR_BEFORE_VALUE,
+    ST_HDR_BEFORE_VALUE, // 52
     ST_HDR_VALUE_START,
     ST_HDR_VALUE,
     ST_HDR_VALUE_ALMOST_DONE,
@@ -72,10 +72,10 @@ enum STATE {
     ST_HDR_IN_CLOSE,
     ST_HDR_IN_CHUNKED,
 
-    ST_HDR_ALMOST_DONE,
+    ST_HDR_ALMOST_DONE, // 61
     ST_HDR_DONE,
 
-    ST_CHUNK_SIZE_START,
+    ST_CHUNK_SIZE_START, //63
     ST_CHUNK_SIZE,
     ST_CHUNK_SIZE_PARAMETERS,
     ST_CHUNK_SIZE_ALMOST_DONE,
@@ -83,7 +83,7 @@ enum STATE {
     ST_CHUNK_DATA_ALMOST_DONE,
     ST_CHUNK_DATA_DONE,
 
-    ST_BODY_IDENTITY,
+    ST_BODY_IDENTITY,  // 70
     ST_BODY_IDENTITY_EOF
 };
 
@@ -575,7 +575,7 @@ http_run_parser(http_parser* p)
             
             case ST_HDR_CON:
                 c = LOWER(ch);
-                p->hdr_index = 3;
+                p->hdr_index = 4;
                 NEXT_IF(c == 'n', ST_HDR_IN_CONNECTION);
                 NEXT_IF(c == 't', ST_HDR_IN_CONTENT_LENGTH);
                 NEXT_IF(OK_IN_HEADER_FIELD(ch), ST_HDR_FIELD);
@@ -834,11 +834,11 @@ http_run_parser(http_parser* p)
                 to_read = MIN(p->bufend - p->buf, to_read);
                 if(p->content_read + to_read == p->content_length)
                 {
-                    INIT_STATE(HTTP_BODY);
+                    INIT_STATE(HTTP_DONE);
                 }
                 else
                 {
-                    INIT_STATE(HTTP_DONE);
+                    INIT_STATE(HTTP_BODY);
                 }
                 if(to_read > 0)
                 {
@@ -854,6 +854,7 @@ http_run_parser(http_parser* p)
                         SUSPEND(HTTP_BODY);
                     }
                 }
+                break;
 
             case ST_BODY_IDENTITY_EOF:
                 to_read = p->bufend - p->buf;

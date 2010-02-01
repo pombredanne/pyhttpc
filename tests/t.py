@@ -5,28 +5,51 @@
 import inspect
 import os
 import re
+import sys
+import tempfile
 import unittest
 
 import pyhttpc
 
 dirname = os.path.dirname(__file__)
 
-def data_source(fname, eol):
-    with open(fname) as handle:
-        for line in handle:
-            next = line.rstrip("\r\n") + eol
-            if next == "\r\n":
-                eol = ""
-            yield next
+class FakeSocket(object):
+    def __init__(self, fname):
+        self.tmp = tempfile.TemporaryFile()
+        
+        lines = []
+        for line in open(fname, "ru").readlines():
+            line = line.rstrip("\n").replace("\\r\\n", "\r\n")
+            lines.append(line)
+        #sys.stderr.write("%r" % ''.join(lines))
+        self.tmp.write(''.join(lines))
+        self.tmp.flush()
+        self.tmp.seek(0)
+
+    def fileno(self):
+        return self.tmp.fileno()
+        
+    def len(self):
+        return self.tmp.len
+        
+    def recv(self, length=None):
+        return self.tmp.read()
+        
+    def send(self, data):
+        self.tmp.write(data)
+        self.tmp.flush()
+        
+    def seek(self, offset, whence=0):
+        self.tmp.seek(offset, whence)
 
 class request(object):
     def __init__(self, name, eol="\r\n"):
         self.fname = os.path.join(dirname, "requests", name)
-        self.eol = eol
+
     def __call__(self, func):
         def run():
-            src = data_source(self.fname, self.eol)
-            parser = pyhttpc.parse_requests(open(self.fname))
+            sock = FakeSocket(self.fname)
+            parser = pyhttpc.parse_requests(sock)
             func(parser)
         run.func_name = func.func_name
         return run
