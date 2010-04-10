@@ -1,21 +1,26 @@
-#
 # Copyright 2009 Paul J. Davis <paul.joseph.davis@gmail.com>
 #
-# This file is part of the python-spidermonkey package released
-# under the MIT license.
-#
+# This file is part of the PyHTTPC pacakge released under the MIT license.
 
 """\
-An HTTP parser written in C. Based on the HTTP parser by Ryan Dahl of
-Node.js fame.
+An HTTP parser written with Ragel.
+"""
 
-http://github.com/davisp/pyhttpc/
-http://github.com/ry/http-parser/
-""",
+import os
+import subprocess as sp
 
 import ez_setup
 ez_setup.use_setuptools()
 from setuptools import setup, Extension
+
+def ragel(rlfname, cfname):
+    if os.path.isfile(cfname):
+        rlmt = os.stat(rlfname).st_mtime
+        cmt = os.stat(cfname).st_mtime
+        if rlmt < cmt:
+            return
+    sp.check_call(["ragel", "-C", "-o", cfname, rlfname])
+ragel("./src/request.rl", "./src/request.c")
 
 setup(
     name = "pyhttpc",
@@ -23,7 +28,7 @@ setup(
     license = "MIT",
     author = "Paul J. Davis",
     author_email = "paul.joseph.davis@gmail.com",
-    description = "HTTP Parser",
+    description = "An HTTP Parser",
     long_description = __doc__,
     url = "http://github.com/davisp/pyhttpc",
     download_url = "http://github.com/davisp/pyhttpc.git",
@@ -47,9 +52,8 @@ setup(
 
     ext_modules = [
         Extension("pyhttpc", sources=[
-            "./src/pyhttpc.c",
-            "./src/parser.c",
-            "./src/state.c"
+            "./src/module.c",
+            "./src/request.c"
         ])
     ],
 

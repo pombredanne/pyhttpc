@@ -1,8 +1,8 @@
 PyHttpC
 =======
 
-A small HTTP parser in C for Python. Based on the http-parser_
-project by Ryan Dahl of Node.js.
+A small HTTP parser in C for Python. Based on the HTTP parser in
+Zed Shaw's Mongrel.
 
 Status
 ------
@@ -18,7 +18,7 @@ Building
 ::
 
     $ git clone git://github.com/davisp/pyhttpc.git
+    $ cd pyhttpc
     $ python setup.py build
     $ python setup.py test
 
-.. _http-parser: http://github.com/ry/http-parser
