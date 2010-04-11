@@ -145,7 +145,7 @@ mark_obj(mark_buf_t* mbuf, const char* end)
 }
 
 void
-add_field(RequestParser* parser, char* name, const char* ptr)
+add_field(http_req_parser_t* parser, char* name, const char* ptr)
 {
     PyObject* val = mark_obj(parser->mark, ptr);
     assert(val != NULL && "FIXME: mark_obj returned null");
@@ -157,7 +157,7 @@ add_field(RequestParser* parser, char* name, const char* ptr)
 }
 
 void
-add_uri(RequestParser* parser, const char* ptr)
+add_uri(http_req_parser_t* parser, const char* ptr)
 {
     PyObject* val = mark_obj(parser->mark_uri, ptr);
     assert(val != NULL && "FIXME: mark_obj returned null");
@@ -169,14 +169,14 @@ add_uri(RequestParser* parser, const char* ptr)
 }
 
 void
-set_header_name(RequestParser* parser, const char* ptr)
+set_header_name(http_req_parser_t* parser, const char* ptr)
 {
     parser->hdr_name = mark_obj(parser->mark, ptr);
     assert(parser->hdr_name != NULL && "FIXME: mark_obj returned null");
 }
 
 void
-add_header(RequestParser* parser, const char* ptr)
+add_header(http_req_parser_t* parser, const char* ptr)
 {
     PyObject* tuple = PyTuple_New(2);
     PyObject* val = mark_obj(parser->mark, ptr);
@@ -184,7 +184,7 @@ add_header(RequestParser* parser, const char* ptr)
     assert(tuple != NULL && "FIXME: PyTuple_New return null");
     assert(val != NULL && "FIXME: mark_obj returned null");
     assert(parser->hdr_name != NULL && "cant set header without a name");
-    assert(parser->headers != NULL && "cant set header with invalid header list");
+    assert(parser->headers != NULL && "cant set header without header list");
 
     PyTuple_SET_ITEM(tuple, 0, parser->hdr_name);
     PyTuple_SET_ITEM(tuple, 1, val);
@@ -201,7 +201,7 @@ success:
 }
 
 void
-add_port(RequestParser* parser)
+add_port(http_req_parser_t* parser)
 {
     PyObject* port = NULL;
     
@@ -217,7 +217,7 @@ add_port(RequestParser* parser)
 }
 
 void
-add_version(RequestParser* parser)
+add_version(http_req_parser_t* parser)
 {
     PyObject* major = NULL;
     PyObject* minor = NULL;
@@ -253,7 +253,7 @@ error:
 }
 
 void
-add_headers(RequestParser* parser)
+add_headers(http_req_parser_t* parser)
 {
     assert(parser->fields != NULL && "parser fields disappeared");
     assert(parser->headers != NULL && "parser headers disappeared");
@@ -299,7 +299,7 @@ save_mark_buf(mark_buf_t* buf, const char* end)
 }
 
 mark_buf_t*
-init_mark_buf()
+init_mark_buf(void)
 {
     mark_buf_t* buf = (mark_buf_t*) malloc(sizeof(mark_buf_t));
     if(buf == NULL) return NULL;
@@ -326,7 +326,7 @@ reinit_mark_buf(mark_buf_t* buf, const char* start)
 }
 
 PyObject*
-init_field_defaults()
+init_field_defaults(void)
 {
     PyObject* fields = PyDict_New();
     
@@ -351,7 +351,7 @@ error:
 }
 
 int
-init_req_parser(RequestParser* parser)
+init_req_parser(http_req_parser_t* parser)
 {
     int cs = 0;
     %% write init;
@@ -397,7 +397,7 @@ free_mark(mark_buf_t* buf)
 }
 
 void
-free_req_parser(RequestParser* parser)
+free_req_parser(http_req_parser_t* parser)
 {
     Py_XDECREF(parser->hdr_name);
     Py_XDECREF(parser->headers);
@@ -407,8 +407,8 @@ free_req_parser(RequestParser* parser)
     free_mark(parser->mark_uri);
 }
 
-size_t
-exec_req_parser(RequestParser* parser, const char* buffer, size_t len)
+int
+exec_req_parser(http_req_parser_t* parser, const char* buffer, size_t len)
 {
     const char* p;
     const char* pe;
@@ -449,4 +449,10 @@ exec_req_parser(RequestParser* parser, const char* buffer, size_t len)
     if(parser->mark_uri->pos != NULL) save_mark_buf(parser->mark_uri, p);
     
     return 1;
+}
+
+const char*
+get_req_error(http_req_parser_t* parser)
+{
+    return "An error occurred.";
 }

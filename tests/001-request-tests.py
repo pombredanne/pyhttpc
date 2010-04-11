@@ -1,12 +1,8 @@
 import t
 
 @t.request("001.http")
-def test_001(p, data):
-    req = None
-    for idx, d in enumerate(data):
-        req = p.read(d)
-        if req:
-            break
+def test_001(reader):
+    req = reader.read()
     exp = {
         "method": "PUT",
         "uri": "/stuff/here?foo=bar",

@@ -10,19 +10,19 @@ PyObject* PyHttpCModule = NULL;
 
 typedef struct {
     PyObject_HEAD
-    RequestParser* parser;
-} RequestReader;
+    http_req_parser_t* parser;
+} RequestParser;
 
 static PyObject*
-RequestReader_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
+RequestParser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
-    RequestReader* self = NULL;
+    RequestParser* self = NULL;
         
-    self = (RequestReader*) type->tp_alloc(type, 0);
+    self = (RequestParser*) type->tp_alloc(type, 0);
     if(self == NULL) goto error;
     self->parser = NULL;
 
-    self->parser = (RequestParser*) malloc(sizeof(RequestParser));
+    self->parser = (http_req_parser_t*) malloc(sizeof(http_req_parser_t));
     if(self->parser == NULL) goto error;
     if(!init_req_parser(self->parser))
     {
@@ -42,61 +42,68 @@ success:
 }
 
 static void
-RequestReader_dealloc(RequestReader* self)
+RequestParser_dealloc(RequestParser* self)
 {
     free_req_parser(self->parser);
 }
 
 static PyObject*
-RequestReader_read(RequestReader* self, PyObject* args, PyObject* kwargs)
+RequestParser_read(RequestParser* self, PyObject* args, PyObject* kwargs)
 {
     const char* buf = NULL;
     Py_ssize_t len = 0;
-    size_t status;
     PyObject* ret = NULL;
+    int status;
     
     if(!PyArg_ParseTuple(args, "s#", &buf, &len)) goto error;
 
     status = exec_req_parser(self->parser, buf, (size_t) len);
 
-    ret = self->parser->fields;
-    self->parser->fields = NULL;
-    return ret;
+    if(status == PARSE_OK)
+    {
+        ret = self->parser->fields;
+        self->parser->fields = NULL;
+        return ret;
+    }
+    else if(status == PARSE_MORE)
+    {
+        Py_RETURN_NONE;
+    }
+    // Else error
+
+    PyErr_SetString(PyExc_ValueError, "Invalid HTTP request.");
 
 error:
     return NULL;
 }
 
 static PyObject*
-RequestReader_body(RequestReader* self, PyObject* args, PyObject* kwargs)
+RequestParser_body(RequestParser* self, PyObject* args, PyObject* kwargs)
 {
-    PyObject* ret = NULL;
-    
-    ret = PyString_FromStringAndSize(self->parser->body, )
     Py_RETURN_NONE;
 }
 
 static PyMemberDef
-RequestReader_members[] = {
+RequestParser_members[] = {
     {NULL}
 };
 
 static PyMethodDef
-RequestReader_methods[] = {
-    {"read", (PyCFunction) RequestReader_read,
+RequestParser_methods[] = {
+    {"read", (PyCFunction) RequestParser_read,
         METH_VARARGS, "Read a request from some data."},
-    {"body", (PyCFunction) RequestReader_body,
+    {"body", (PyCFunction) RequestParser_body,
         METH_NOARGS, "Get any data that might be part of the body."},
     {NULL}
 };
 
-PyTypeObject RequestReaderType = {
+PyTypeObject RequestParserType = {
     PyObject_HEAD_INIT(NULL)
     0,                                          /*ob_size*/
-    "pyhttpc.RequestReader",                    /*tp_name*/
-    sizeof(RequestReader),                      /*tp_basicsize*/
+    "pyhttpc.native.RequestParser",             /*tp_name*/
+    sizeof(RequestParser),                      /*tp_basicsize*/
     0,                                          /*tp_itemsize*/
-    (destructor)RequestReader_dealloc,          /*tp_dealloc*/
+    (destructor)RequestParser_dealloc,          /*tp_dealloc*/
     0,                                          /*tp_print*/
     0,                                          /*tp_getattr*/
     0,                                          /*tp_setattr*/
@@ -119,8 +126,8 @@ PyTypeObject RequestReaderType = {
     0,		                                    /*tp_weaklistoffset*/
     0,		                                    /*tp_iter*/
     0,		                                    /*tp_iternext*/
-    RequestReader_methods,                      /*tp_methods*/
-    RequestReader_members,                      /*tp_members*/
+    RequestParser_methods,                      /*tp_methods*/
+    RequestParser_members,                      /*tp_members*/
     0,                                          /*tp_getset*/
     0,                                          /*tp_base*/
     0,                                          /*tp_dict*/
@@ -129,7 +136,7 @@ PyTypeObject RequestReaderType = {
     0,                                          /*tp_dictoffset*/
     0,                                          /*tp_init*/
     0,                                          /*tp_alloc*/
-    RequestReader_new,                          /*tp_new*/
+    RequestParser_new,                          /*tp_new*/
 };
 
 static PyMethodDef pyhttpc_methods[] = {
@@ -141,17 +148,17 @@ static PyMethodDef pyhttpc_methods[] = {
 #endif
 
 PyMODINIT_FUNC
-initpyhttpc(void)
+initnative(void)
 {
     PyObject* m;
 
-    if(PyType_Ready(&RequestReaderType) < 0) return;
+    if(PyType_Ready(&RequestParserType) < 0) return;
 
-    m = Py_InitModule3("pyhttpc", pyhttpc_methods, "An HTTP Parser");
+    m = Py_InitModule3("native", pyhttpc_methods, "An HTTP Parser");
     if(m == NULL) return;
 
-    Py_INCREF(&RequestReaderType);
-    PyModule_AddObject(m, "RequestReader", (PyObject*) &RequestReaderType);
+    Py_INCREF(&RequestParserType);
+    PyModule_AddObject(m, "RequestParser", (PyObject*) &RequestParserType);
     
     PyHttpCModule = m;
 }

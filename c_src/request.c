@@ -1,5 +1,5 @@
 
-#line 1 "./src/request.rl"
+#line 1 "./c_src/request.rl"
 
 #include <assert.h>
 #include <stdio.h>
@@ -13,11 +13,11 @@
 #define WHERE fprintf(stderr, "%s(%d):%s\n", __FILE__, __LINE__, __FUNCTION__)
 
 
-#line 106 "./src/request.rl"
+#line 106 "./c_src/request.rl"
 
 
 
-#line 21 "./src/request.c"
+#line 21 "./c_src/request.c"
 static const char _http_req_parser_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
@@ -239,7 +239,7 @@ static const int http_req_parser_error = 0;
 static const int http_req_parser_en_main = 1;
 
 
-#line 109 "./src/request.rl"
+#line 109 "./c_src/request.rl"
 
 static inline PyObject*
 mark_obj(mark_buf_t* mbuf, const char* end)
@@ -279,7 +279,7 @@ mark_obj(mark_buf_t* mbuf, const char* end)
 }
 
 void
-add_field(RequestParser* parser, char* name, const char* ptr)
+add_field(http_req_parser_t* parser, char* name, const char* ptr)
 {
     PyObject* val = mark_obj(parser->mark, ptr);
     assert(val != NULL && "FIXME: mark_obj returned null");
@@ -291,7 +291,7 @@ add_field(RequestParser* parser, char* name, const char* ptr)
 }
 
 void
-add_uri(RequestParser* parser, const char* ptr)
+add_uri(http_req_parser_t* parser, const char* ptr)
 {
     PyObject* val = mark_obj(parser->mark_uri, ptr);
     assert(val != NULL && "FIXME: mark_obj returned null");
@@ -303,14 +303,14 @@ add_uri(RequestParser* parser, const char* ptr)
 }
 
 void
-set_header_name(RequestParser* parser, const char* ptr)
+set_header_name(http_req_parser_t* parser, const char* ptr)
 {
     parser->hdr_name = mark_obj(parser->mark, ptr);
     assert(parser->hdr_name != NULL && "FIXME: mark_obj returned null");
 }
 
 void
-add_header(RequestParser* parser, const char* ptr)
+add_header(http_req_parser_t* parser, const char* ptr)
 {
     PyObject* tuple = PyTuple_New(2);
     PyObject* val = mark_obj(parser->mark, ptr);
@@ -318,7 +318,7 @@ add_header(RequestParser* parser, const char* ptr)
     assert(tuple != NULL && "FIXME: PyTuple_New return null");
     assert(val != NULL && "FIXME: mark_obj returned null");
     assert(parser->hdr_name != NULL && "cant set header without a name");
-    assert(parser->headers != NULL && "cant set header with invalid header list");
+    assert(parser->headers != NULL && "cant set header without header list");
 
     PyTuple_SET_ITEM(tuple, 0, parser->hdr_name);
     PyTuple_SET_ITEM(tuple, 1, val);
@@ -335,7 +335,7 @@ success:
 }
 
 void
-add_port(RequestParser* parser)
+add_port(http_req_parser_t* parser)
 {
     PyObject* port = NULL;
     
@@ -351,7 +351,7 @@ add_port(RequestParser* parser)
 }
 
 void
-add_version(RequestParser* parser)
+add_version(http_req_parser_t* parser)
 {
     PyObject* major = NULL;
     PyObject* minor = NULL;
@@ -387,7 +387,7 @@ error:
 }
 
 void
-add_headers(RequestParser* parser)
+add_headers(http_req_parser_t* parser)
 {
     assert(parser->fields != NULL && "parser fields disappeared");
     assert(parser->headers != NULL && "parser headers disappeared");
@@ -433,7 +433,7 @@ save_mark_buf(mark_buf_t* buf, const char* end)
 }
 
 mark_buf_t*
-init_mark_buf()
+init_mark_buf(void)
 {
     mark_buf_t* buf = (mark_buf_t*) malloc(sizeof(mark_buf_t));
     if(buf == NULL) return NULL;
@@ -460,7 +460,7 @@ reinit_mark_buf(mark_buf_t* buf, const char* start)
 }
 
 PyObject*
-init_field_defaults()
+init_field_defaults(void)
 {
     PyObject* fields = PyDict_New();
     
@@ -485,16 +485,16 @@ error:
 }
 
 int
-init_req_parser(RequestParser* parser)
+init_req_parser(http_req_parser_t* parser)
 {
     int cs = 0;
     
-#line 493 "./src/request.c"
+#line 493 "./c_src/request.c"
 	{
 	cs = http_req_parser_start;
 	}
 
-#line 358 "./src/request.rl"
+#line 358 "./c_src/request.rl"
 
     parser->cs = cs;
     parser->error = 0;
@@ -537,7 +537,7 @@ free_mark(mark_buf_t* buf)
 }
 
 void
-free_req_parser(RequestParser* parser)
+free_req_parser(http_req_parser_t* parser)
 {
     Py_XDECREF(parser->hdr_name);
     Py_XDECREF(parser->headers);
@@ -547,8 +547,8 @@ free_req_parser(RequestParser* parser)
     free_mark(parser->mark_uri);
 }
 
-size_t
-exec_req_parser(RequestParser* parser, const char* buffer, size_t len)
+int
+exec_req_parser(http_req_parser_t* parser, const char* buffer, size_t len)
 {
     const char* p;
     const char* pe;
@@ -563,7 +563,7 @@ exec_req_parser(RequestParser* parser, const char* buffer, size_t len)
     while(p < pe && cs != http_req_parser_error)
     {
         
-#line 567 "./src/request.c"
+#line 567 "./c_src/request.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -638,99 +638,99 @@ _match:
 		switch ( *_acts++ )
 		{
 	case 0:
-#line 16 "./src/request.rl"
+#line 16 "./c_src/request.rl"
 	{
         assert(parser->mark->pos == NULL && "won't overwrite a mark.");
         parser->mark->pos = p;
     }
 	break;
 	case 1:
-#line 21 "./src/request.rl"
+#line 21 "./c_src/request.rl"
 	{
         add_field(parser, "method", p);
     }
 	break;
 	case 2:
-#line 25 "./src/request.rl"
+#line 25 "./c_src/request.rl"
 	{
         add_field(parser, "scheme", p);
     }
 	break;
 	case 3:
-#line 29 "./src/request.rl"
+#line 29 "./c_src/request.rl"
 	{
         add_field(parser, "host", p);
     }
 	break;
 	case 4:
-#line 33 "./src/request.rl"
+#line 33 "./c_src/request.rl"
 	{
         parser->port = 0;
     }
 	break;
 	case 5:
-#line 37 "./src/request.rl"
+#line 37 "./c_src/request.rl"
 	{
         parser->port = parser->port*10 + ((*p)-'0');
     }
 	break;
 	case 6:
-#line 41 "./src/request.rl"
+#line 41 "./c_src/request.rl"
 	{
         add_field(parser, "path", p);
     }
 	break;
 	case 7:
-#line 45 "./src/request.rl"
+#line 45 "./c_src/request.rl"
 	{
         add_field(parser, "query", p);
     }
 	break;
 	case 8:
-#line 49 "./src/request.rl"
+#line 49 "./c_src/request.rl"
 	{
         add_field(parser, "fragment", p);
     }
 	break;
 	case 9:
-#line 53 "./src/request.rl"
+#line 53 "./c_src/request.rl"
 	{
         assert(parser->mark_uri->pos != NULL && "wont overwrite uri mark");
         parser->mark_uri->pos = p;
     }
 	break;
 	case 10:
-#line 58 "./src/request.rl"
+#line 58 "./c_src/request.rl"
 	{
         add_uri(parser, p);
     }
 	break;
 	case 11:
-#line 62 "./src/request.rl"
+#line 62 "./c_src/request.rl"
 	{
         parser->vsn_major = 0;
     }
 	break;
 	case 12:
-#line 66 "./src/request.rl"
+#line 66 "./c_src/request.rl"
 	{
         parser->vsn_major = parser->vsn_major*10 + ((*p)-'0');
     }
 	break;
 	case 13:
-#line 70 "./src/request.rl"
+#line 70 "./c_src/request.rl"
 	{
         parser->vsn_minor = 0;
     }
 	break;
 	case 14:
-#line 74 "./src/request.rl"
+#line 74 "./c_src/request.rl"
 	{
         parser->vsn_minor = parser->vsn_minor * 10 + ((*p)-'0');
     }
 	break;
 	case 15:
-#line 78 "./src/request.rl"
+#line 78 "./c_src/request.rl"
 	{
         assert(parser->hdr_field == NULL && "header name already marked");        
         assert(parser->mark->pos == NULL && "wont overwrite a mark");
@@ -738,13 +738,13 @@ _match:
     }
 	break;
 	case 16:
-#line 84 "./src/request.rl"
+#line 84 "./c_src/request.rl"
 	{
         set_header_name(parser, p);
     }
 	break;
 	case 17:
-#line 88 "./src/request.rl"
+#line 88 "./c_src/request.rl"
 	{
         assert(parser->hdr_name != NULL && "value must have a name");
         assert(parser->mark->pos == NULL && "wont overwrite a mark");
@@ -752,19 +752,19 @@ _match:
     }
 	break;
 	case 18:
-#line 94 "./src/request.rl"
+#line 94 "./c_src/request.rl"
 	{
         add_header(parser, p);
     }
 	break;
 	case 19:
-#line 98 "./src/request.rl"
+#line 98 "./c_src/request.rl"
 	{
         parser->body = p;
         {p++; goto _out; }
     }
 	break;
-#line 768 "./src/request.c"
+#line 768 "./c_src/request.c"
 		}
 	}
 
@@ -777,7 +777,7 @@ _again:
 	_out: {}
 	}
 
-#line 426 "./src/request.rl"
+#line 426 "./c_src/request.rl"
     }
 
     parser->cs = cs;
@@ -804,4 +804,10 @@ _again:
     if(parser->mark_uri->pos != NULL) save_mark_buf(parser->mark_uri, p);
     
     return 1;
+}
+
+const char*
+get_req_error(http_req_parser_t* parser)
+{
+    return "An error occurred.";
 }

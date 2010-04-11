@@ -22,8 +22,16 @@ class request(object):
             with open(self.fname) as handle:
                 data = handle.read()
             data = data.replace("\n", "").replace("\\r\\n", "\r\n")
-            func(RequestReader(), [data])
-            func(RequestReader(), data)
+
+            def all_at_once():
+                yield data
+            func(RequestReader(all_at_once()))
+
+            def byte_at_a_time():
+                for d in data:
+                    yield d
+            func(RequestReader(byte_at_a_time()))
+
         run.func_name = func.func_name
         return run
     

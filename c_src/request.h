@@ -27,11 +27,15 @@ typedef struct {
 
     mark_buf_t* mark;
     mark_buf_t* mark_uri;
-} RequestParser;
+} http_req_parser_t;
 
-int init_req_parser(RequestParser* parser);
-void free_req_parser(RequestParser* parser);
-size_t exec_req_parser(RequestParser* parser, const char* buffer, size_t len);
-char* get_req_error(RequestParser* parser);
+#define PARSE_ERROR 0
+#define PARSE_OK 1
+#define PARSE_MORE 2
+
+int init_req_parser(http_req_parser_t* parser);
+void free_req_parser(http_req_parser_t* parser);
+int exec_req_parser(http_req_parser_t* parser, const char* buf, size_t len);
+const char* get_req_error(http_req_parser_t* parser);
 
 #endif // Included request.h
