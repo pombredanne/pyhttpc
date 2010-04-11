@@ -15,7 +15,7 @@
 
     # Character classes
 
-    lws = " \t";
+    lws = 9 | 32;
     safe = ("$" | "-" | "_" | ".");
     extra = ("!" | "*" | "'" | "(" | ")" | ",");
     escape = ("%" xdigit xdigit);
@@ -34,7 +34,7 @@
     portpart = (":" (digit+)? >mark_port $write_port)?;
     host = scheme "://" (hostpart portpart);
     path = ("/" pchar*) >mark %write_path;
-    query = ("?" pchar*) >mark %write_query;
+    query = ("?" (pchar*) >mark %write_query);
     fragment = ("#" pchar*) >mark $write_fragment;
     uri = (host? path? query? fragment?);
 
@@ -46,15 +46,15 @@
 
     # Headers
     
-    header_name = (token -- ":")+ >mark_name $write_name;
-    header_value = any* >mark_value $write_value;
+    header_name = (token -- ":")+ >mark_name %write_name;
+    header_value = lws* (any* >mark_value %write_value);
     header = header_name ":" header_value :> crlf;
 
     # Requests
 
     method = (upper | digit | safe){1,20} >mark %write_method;
     resource = ("*" | uri) >mark_uri %write_uri;
-    request_line = method lws+ resource lws+ version lws+ crlf;
+    request_line = method lws+ resource lws+ version lws* crlf;
     request = request_line header* (crlf @done);
     
     # Responses - Hammer this out later.

@@ -2,267 +2,499 @@
 #line 1 "./src/request.rl"
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "request.h"
 
+#define DEF_BUF_SIZE 1024
+#define MAX_BUF_LEN  128*1024
 
-#line 103 "./src/request.rl"
+#define WHERE fprintf(stderr, "%s(%d):%s\n", __FILE__, __LINE__, __FUNCTION__)
+
+
+#line 106 "./src/request.rl"
 
 
 
-#line 15 "./src/request.c"
+#line 21 "./src/request.c"
 static const char _http_req_parser_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
-	3, 1, 5, 1, 8, 1, 9, 1, 
-	10, 1, 12, 1, 14, 1, 16, 1, 
-	17, 1, 18, 1, 19, 2, 0, 8, 
-	2, 3, 0, 2, 3, 10, 2, 4, 
-	0, 2, 4, 5, 2, 4, 10, 2, 
-	6, 0, 2, 6, 10, 2, 7, 10, 
-	2, 9, 0, 2, 9, 10, 2, 11, 
-	12, 2, 13, 14, 2, 15, 16, 2, 
-	17, 18, 3, 3, 0, 8, 3, 4, 
+	3, 1, 4, 1, 5, 1, 6, 1, 
+	8, 1, 9, 1, 10, 1, 12, 1, 
+	14, 1, 15, 1, 16, 1, 17, 1, 
+	18, 1, 19, 2, 0, 8, 2, 3, 
+	0, 2, 3, 10, 2, 4, 0, 2, 
+	4, 5, 2, 4, 10, 2, 6, 10, 
+	2, 7, 10, 2, 9, 0, 2, 9, 
+	10, 2, 11, 12, 2, 13, 14, 2, 
+	17, 18, 3, 0, 7, 8, 3, 0, 
+	7, 10, 3, 3, 0, 8, 3, 4, 
 	0, 8, 3, 6, 0, 8, 3, 7, 
 	0, 8, 3, 9, 0, 8
 };
 
 static const short _http_req_parser_key_offsets[] = {
-	0, 0, 8, 17, 18, 30, 31, 44, 
-	57, 58, 60, 61, 62, 63, 64, 66, 
-	69, 71, 74, 75, 77, 78, 94, 95, 
-	111, 112, 113, 119, 125, 126, 136, 137, 
-	138, 154, 159, 174, 180, 186, 200, 206, 
-	212, 218, 224, 230, 236, 247, 258, 269, 
-	278, 287, 296, 305, 314, 323, 332, 341, 
-	350, 359, 368, 377, 386, 395, 404, 413, 
-	422, 431, 440, 441
+	0, 0, 8, 18, 31, 45, 59, 62, 
+	63, 64, 65, 66, 68, 71, 73, 78, 
+	81, 82, 98, 99, 115, 118, 119, 125, 
+	131, 133, 143, 144, 145, 161, 167, 183, 
+	189, 195, 210, 225, 231, 237, 244, 251, 
+	257, 263, 274, 285, 296, 305, 315, 325, 
+	335, 345, 355, 365, 375, 385, 395, 405, 
+	415, 425, 435, 445, 455, 465, 475, 485, 
+	487
 };
 
 static const char _http_req_parser_trans_keys[] = {
 	36, 95, 45, 46, 48, 57, 65, 90, 
-	32, 36, 95, 45, 46, 48, 57, 65, 
-	90, 9, 32, 35, 42, 43, 47, 63, 
-	45, 57, 65, 90, 97, 122, 9, 32, 
-	35, 42, 43, 47, 63, 72, 45, 57, 
-	65, 90, 97, 122, 32, 33, 37, 61, 
+	9, 32, 36, 95, 45, 46, 48, 57, 
+	65, 90, 9, 32, 35, 42, 43, 47, 
+	63, 45, 57, 65, 90, 97, 122, 9, 
+	32, 35, 42, 43, 47, 63, 72, 45, 
+	57, 65, 90, 97, 122, 9, 32, 33, 
+	37, 61, 95, 36, 42, 44, 59, 64, 
+	90, 97, 122, 9, 32, 72, 84, 84, 
+	80, 47, 48, 57, 46, 48, 57, 48, 
+	57, 9, 13, 32, 48, 57, 9, 13, 
+	32, 10, 13, 33, 124, 126, 35, 39, 
+	42, 43, 45, 46, 48, 57, 65, 90, 
+	94, 122, 10, 33, 58, 124, 126, 35, 
+	39, 42, 43, 45, 46, 48, 57, 65, 
+	90, 94, 122, 9, 13, 32, 13, 48, 
+	57, 65, 70, 97, 102, 48, 57, 65, 
+	70, 97, 102, 9, 32, 43, 58, 45, 
+	46, 48, 57, 65, 90, 97, 122, 47, 
+	47, 33, 37, 59, 61, 63, 95, 36, 
+	42, 44, 46, 48, 57, 65, 90, 97, 
+	122, 9, 32, 35, 47, 58, 63, 9, 
+	32, 33, 35, 37, 61, 63, 95, 36, 
+	42, 44, 59, 64, 90, 97, 122, 48, 
+	57, 65, 70, 97, 102, 48, 57, 65, 
+	70, 97, 102, 9, 32, 33, 35, 37, 
+	61, 95, 36, 42, 44, 59, 64, 90, 
+	97, 122, 9, 32, 33, 35, 37, 61, 
 	95, 36, 42, 44, 59, 64, 90, 97, 
-	122, 9, 32, 72, 84, 84, 80, 47, 
-	48, 57, 46, 48, 57, 48, 57, 32, 
-	48, 57, 9, 13, 32, 10, 13, 33, 
-	124, 126, 35, 39, 42, 43, 45, 46, 
-	48, 57, 65, 90, 94, 122, 10, 33, 
-	58, 124, 126, 35, 39, 42, 43, 45, 
-	46, 48, 57, 65, 90, 94, 122, 13, 
-	13, 48, 57, 65, 70, 97, 102, 48, 
-	57, 65, 70, 97, 102, 32, 43, 58, 
-	45, 46, 48, 57, 65, 90, 97, 122, 
-	47, 47, 33, 37, 59, 61, 63, 95, 
-	36, 42, 44, 46, 48, 57, 65, 90, 
-	97, 122, 32, 35, 47, 58, 63, 32, 
-	33, 35, 37, 61, 63, 95, 36, 42, 
-	44, 59, 64, 90, 97, 122, 48, 57, 
-	65, 70, 97, 102, 48, 57, 65, 70, 
-	97, 102, 32, 33, 35, 37, 61, 95, 
-	36, 42, 44, 59, 64, 90, 97, 122, 
-	48, 57, 65, 70, 97, 102, 48, 57, 
-	65, 70, 97, 102, 32, 35, 47, 63, 
-	48, 57, 32, 35, 47, 63, 48, 57, 
-	48, 57, 65, 70, 97, 102, 48, 57, 
-	65, 70, 97, 102, 43, 58, 84, 45, 
-	46, 48, 57, 65, 90, 97, 122, 43, 
+	122, 48, 57, 65, 70, 97, 102, 48, 
+	57, 65, 70, 97, 102, 9, 32, 35, 
+	47, 63, 48, 57, 9, 32, 35, 47, 
+	63, 48, 57, 48, 57, 65, 70, 97, 
+	102, 48, 57, 65, 70, 97, 102, 43, 
 	58, 84, 45, 46, 48, 57, 65, 90, 
-	97, 122, 43, 58, 80, 45, 46, 48, 
-	57, 65, 90, 97, 122, 43, 47, 58, 
-	45, 57, 65, 90, 97, 122, 32, 36, 
-	95, 45, 46, 48, 57, 65, 90, 32, 
-	36, 95, 45, 46, 48, 57, 65, 90, 
+	97, 122, 43, 58, 84, 45, 46, 48, 
+	57, 65, 90, 97, 122, 43, 58, 80, 
+	45, 46, 48, 57, 65, 90, 97, 122, 
+	43, 47, 58, 45, 57, 65, 90, 97, 
+	122, 9, 32, 36, 95, 45, 46, 48, 
+	57, 65, 90, 9, 32, 36, 95, 45, 
+	46, 48, 57, 65, 90, 9, 32, 36, 
+	95, 45, 46, 48, 57, 65, 90, 9, 
 	32, 36, 95, 45, 46, 48, 57, 65, 
-	90, 32, 36, 95, 45, 46, 48, 57, 
-	65, 90, 32, 36, 95, 45, 46, 48, 
-	57, 65, 90, 32, 36, 95, 45, 46, 
-	48, 57, 65, 90, 32, 36, 95, 45, 
-	46, 48, 57, 65, 90, 32, 36, 95, 
-	45, 46, 48, 57, 65, 90, 32, 36, 
-	95, 45, 46, 48, 57, 65, 90, 32, 
-	36, 95, 45, 46, 48, 57, 65, 90, 
+	90, 9, 32, 36, 95, 45, 46, 48, 
+	57, 65, 90, 9, 32, 36, 95, 45, 
+	46, 48, 57, 65, 90, 9, 32, 36, 
+	95, 45, 46, 48, 57, 65, 90, 9, 
 	32, 36, 95, 45, 46, 48, 57, 65, 
-	90, 32, 36, 95, 45, 46, 48, 57, 
-	65, 90, 32, 36, 95, 45, 46, 48, 
-	57, 65, 90, 32, 36, 95, 45, 46, 
-	48, 57, 65, 90, 32, 36, 95, 45, 
-	46, 48, 57, 65, 90, 32, 36, 95, 
-	45, 46, 48, 57, 65, 90, 32, 36, 
-	95, 45, 46, 48, 57, 65, 90, 32, 
-	36, 95, 45, 46, 48, 57, 65, 90, 
-	32, 0
+	90, 9, 32, 36, 95, 45, 46, 48, 
+	57, 65, 90, 9, 32, 36, 95, 45, 
+	46, 48, 57, 65, 90, 9, 32, 36, 
+	95, 45, 46, 48, 57, 65, 90, 9, 
+	32, 36, 95, 45, 46, 48, 57, 65, 
+	90, 9, 32, 36, 95, 45, 46, 48, 
+	57, 65, 90, 9, 32, 36, 95, 45, 
+	46, 48, 57, 65, 90, 9, 32, 36, 
+	95, 45, 46, 48, 57, 65, 90, 9, 
+	32, 36, 95, 45, 46, 48, 57, 65, 
+	90, 9, 32, 36, 95, 45, 46, 48, 
+	57, 65, 90, 9, 32, 36, 95, 45, 
+	46, 48, 57, 65, 90, 9, 32, 0
 };
 
 static const char _http_req_parser_single_lengths[] = {
-	0, 2, 3, 1, 6, 1, 7, 5, 
-	1, 2, 1, 1, 1, 1, 0, 1, 
-	0, 1, 1, 2, 1, 4, 1, 4, 
-	1, 1, 0, 0, 1, 2, 1, 1, 
-	6, 5, 7, 0, 0, 6, 0, 0, 
-	4, 4, 0, 0, 3, 3, 3, 3, 
-	3, 3, 3, 3, 3, 3, 3, 3, 
-	3, 3, 3, 3, 3, 3, 3, 3, 
-	3, 3, 1, 0
+	0, 2, 4, 7, 8, 6, 3, 1, 
+	1, 1, 1, 0, 1, 0, 3, 3, 
+	1, 4, 1, 4, 3, 1, 0, 0, 
+	2, 2, 1, 1, 6, 6, 8, 0, 
+	0, 7, 7, 0, 0, 5, 5, 0, 
+	0, 3, 3, 3, 3, 4, 4, 4, 
+	4, 4, 4, 4, 4, 4, 4, 4, 
+	4, 4, 4, 4, 4, 4, 4, 2, 
+	0
 };
 
 static const char _http_req_parser_range_lengths[] = {
-	0, 3, 3, 0, 3, 0, 3, 4, 
-	0, 0, 0, 0, 0, 0, 1, 1, 
-	1, 1, 0, 0, 0, 6, 0, 6, 
-	0, 0, 3, 3, 0, 4, 0, 0, 
-	5, 0, 4, 3, 3, 4, 3, 3, 
-	1, 1, 3, 3, 4, 4, 4, 3, 
+	0, 3, 3, 3, 3, 4, 0, 0, 
+	0, 0, 0, 1, 1, 1, 1, 0, 
+	0, 6, 0, 6, 0, 0, 3, 3, 
+	0, 4, 0, 0, 5, 0, 4, 3, 
+	3, 4, 4, 3, 3, 1, 1, 3, 
+	3, 4, 4, 4, 3, 3, 3, 3, 
 	3, 3, 3, 3, 3, 3, 3, 3, 
-	3, 3, 3, 3, 3, 3, 3, 3, 
-	3, 3, 0, 0
+	3, 3, 3, 3, 3, 3, 3, 0, 
+	0
 };
 
 static const short _http_req_parser_index_offsets[] = {
-	0, 0, 6, 13, 15, 25, 27, 38, 
-	48, 50, 53, 55, 57, 59, 61, 63, 
-	66, 68, 71, 73, 76, 78, 89, 91, 
-	102, 104, 106, 110, 114, 116, 123, 125, 
-	127, 139, 145, 157, 161, 165, 176, 180, 
-	184, 190, 196, 200, 204, 212, 220, 228, 
-	235, 242, 249, 256, 263, 270, 277, 284, 
-	291, 298, 305, 312, 319, 326, 333, 340, 
-	347, 354, 361, 363
+	0, 0, 6, 14, 25, 37, 48, 52, 
+	54, 56, 58, 60, 62, 65, 67, 72, 
+	76, 78, 89, 91, 102, 106, 108, 112, 
+	116, 119, 126, 128, 130, 142, 149, 162, 
+	166, 170, 182, 194, 198, 202, 209, 216, 
+	220, 224, 232, 240, 248, 255, 263, 271, 
+	279, 287, 295, 303, 311, 319, 327, 335, 
+	343, 351, 359, 367, 375, 383, 391, 399, 
+	402
 };
 
 static const char _http_req_parser_indicies[] = {
-	0, 0, 0, 0, 0, 1, 2, 3, 
-	3, 3, 3, 3, 1, 4, 1, 5, 
-	6, 7, 8, 9, 10, 8, 8, 8, 
-	1, 11, 1, 5, 6, 7, 8, 9, 
-	10, 12, 8, 8, 8, 1, 13, 14, 
-	15, 14, 14, 14, 14, 14, 14, 1, 
-	16, 1, 17, 18, 1, 19, 1, 20, 
-	1, 21, 1, 22, 1, 23, 1, 24, 
-	25, 1, 26, 1, 27, 28, 1, 29, 
-	1, 30, 27, 1, 31, 1, 32, 33, 
-	33, 33, 33, 33, 33, 33, 33, 33, 
-	1, 34, 1, 35, 36, 35, 35, 35, 
-	35, 35, 35, 35, 35, 1, 38, 37, 
-	30, 39, 40, 40, 40, 1, 14, 14, 
-	14, 1, 13, 1, 41, 42, 41, 41, 
-	41, 41, 1, 43, 1, 44, 1, 45, 
-	46, 45, 45, 45, 45, 45, 45, 45, 
-	45, 45, 1, 47, 48, 49, 50, 51, 
-	1, 52, 53, 54, 55, 53, 56, 53, 
-	53, 53, 53, 53, 1, 57, 57, 57, 
-	1, 53, 53, 53, 1, 58, 59, 60, 
-	61, 59, 59, 59, 59, 59, 59, 1, 
-	62, 62, 62, 1, 59, 59, 59, 1, 
-	63, 64, 65, 67, 66, 1, 13, 68, 
-	69, 71, 70, 1, 72, 72, 72, 1, 
-	73, 73, 73, 1, 41, 42, 74, 41, 
-	41, 41, 41, 1, 41, 42, 75, 41, 
-	41, 41, 41, 1, 41, 42, 76, 41, 
-	41, 41, 41, 1, 41, 22, 42, 41, 
-	41, 41, 1, 2, 77, 77, 77, 77, 
-	77, 1, 2, 78, 78, 78, 78, 78, 
-	1, 2, 79, 79, 79, 79, 79, 1, 
+	0, 0, 0, 0, 0, 1, 2, 2, 
+	3, 3, 3, 3, 3, 1, 4, 4, 
+	5, 6, 7, 8, 9, 7, 7, 7, 
+	1, 4, 4, 5, 6, 7, 8, 9, 
+	10, 7, 7, 7, 1, 11, 11, 12, 
+	13, 12, 12, 12, 12, 12, 12, 1, 
+	14, 14, 15, 1, 16, 1, 17, 1, 
+	18, 1, 19, 1, 20, 1, 21, 22, 
+	1, 23, 1, 24, 25, 24, 26, 1, 
+	24, 25, 24, 1, 27, 1, 28, 29, 
+	29, 29, 29, 29, 29, 29, 29, 29, 
+	1, 30, 1, 31, 32, 31, 31, 31, 
+	31, 31, 31, 31, 31, 1, 34, 35, 
+	34, 33, 37, 36, 38, 38, 38, 1, 
+	12, 12, 12, 1, 11, 11, 1, 39, 
+	40, 39, 39, 39, 39, 1, 41, 1, 
+	42, 1, 43, 44, 43, 43, 43, 43, 
+	43, 43, 43, 43, 43, 1, 45, 45, 
+	46, 47, 48, 49, 1, 50, 50, 51, 
+	52, 53, 51, 54, 51, 51, 51, 51, 
+	51, 1, 55, 55, 55, 1, 51, 51, 
+	51, 1, 56, 56, 57, 58, 59, 57, 
+	57, 57, 57, 57, 57, 1, 60, 60, 
+	61, 62, 63, 61, 61, 61, 61, 61, 
+	61, 1, 64, 64, 64, 1, 61, 61, 
+	61, 1, 65, 65, 66, 67, 69, 68, 
+	1, 11, 11, 70, 71, 73, 72, 1, 
+	74, 74, 74, 1, 75, 75, 75, 1, 
+	39, 40, 76, 39, 39, 39, 39, 1, 
+	39, 40, 77, 39, 39, 39, 39, 1, 
+	39, 40, 78, 39, 39, 39, 39, 1, 
+	39, 19, 40, 39, 39, 39, 1, 2, 
+	2, 79, 79, 79, 79, 79, 1, 2, 
 	2, 80, 80, 80, 80, 80, 1, 2, 
-	81, 81, 81, 81, 81, 1, 2, 82, 
-	82, 82, 82, 82, 1, 2, 83, 83, 
-	83, 83, 83, 1, 2, 84, 84, 84, 
-	84, 84, 1, 2, 85, 85, 85, 85, 
-	85, 1, 2, 86, 86, 86, 86, 86, 
-	1, 2, 87, 87, 87, 87, 87, 1, 
+	2, 81, 81, 81, 81, 81, 1, 2, 
+	2, 82, 82, 82, 82, 82, 1, 2, 
+	2, 83, 83, 83, 83, 83, 1, 2, 
+	2, 84, 84, 84, 84, 84, 1, 2, 
+	2, 85, 85, 85, 85, 85, 1, 2, 
+	2, 86, 86, 86, 86, 86, 1, 2, 
+	2, 87, 87, 87, 87, 87, 1, 2, 
 	2, 88, 88, 88, 88, 88, 1, 2, 
-	89, 89, 89, 89, 89, 1, 2, 90, 
-	90, 90, 90, 90, 1, 2, 91, 91, 
-	91, 91, 91, 1, 2, 92, 92, 92, 
-	92, 92, 1, 2, 93, 93, 93, 93, 
-	93, 1, 2, 94, 94, 94, 94, 94, 
-	1, 2, 1, 1, 0
+	2, 89, 89, 89, 89, 89, 1, 2, 
+	2, 90, 90, 90, 90, 90, 1, 2, 
+	2, 91, 91, 91, 91, 91, 1, 2, 
+	2, 92, 92, 92, 92, 92, 1, 2, 
+	2, 93, 93, 93, 93, 93, 1, 2, 
+	2, 94, 94, 94, 94, 94, 1, 2, 
+	2, 95, 95, 95, 95, 95, 1, 2, 
+	2, 96, 96, 96, 96, 96, 1, 2, 
+	2, 1, 1, 0
 };
 
 static const char _http_req_parser_trans_targs[] = {
-	2, 0, 3, 48, 4, 5, 7, 28, 
-	29, 34, 37, 6, 44, 8, 7, 26, 
-	9, 8, 10, 11, 12, 13, 14, 15, 
-	16, 15, 17, 18, 17, 19, 20, 21, 
-	22, 23, 67, 23, 24, 25, 20, 25, 
-	27, 29, 30, 31, 32, 33, 42, 8, 
-	7, 34, 40, 37, 8, 34, 7, 35, 
-	37, 36, 8, 37, 7, 38, 39, 8, 
-	7, 34, 41, 37, 7, 34, 41, 37, 
-	43, 33, 45, 46, 47, 49, 50, 51, 
-	52, 53, 54, 55, 56, 57, 58, 59, 
-	60, 61, 62, 63, 64, 65, 66
+	2, 0, 3, 45, 4, 5, 24, 25, 
+	30, 33, 41, 6, 5, 22, 6, 7, 
+	8, 9, 10, 11, 12, 13, 12, 14, 
+	15, 16, 14, 17, 18, 19, 64, 19, 
+	20, 21, 20, 16, 21, 16, 23, 25, 
+	26, 27, 28, 29, 39, 6, 5, 30, 
+	37, 33, 6, 30, 5, 31, 33, 32, 
+	6, 34, 5, 35, 6, 34, 5, 35, 
+	36, 6, 5, 30, 38, 33, 5, 30, 
+	38, 33, 40, 29, 42, 43, 44, 46, 
+	47, 48, 49, 50, 51, 52, 53, 54, 
+	55, 56, 57, 58, 59, 60, 61, 62, 
+	63
 };
 
 static const char _http_req_parser_trans_actions[] = {
-	1, 0, 3, 0, 0, 59, 90, 13, 
-	56, 56, 56, 0, 56, 15, 11, 11, 
-	0, 0, 0, 0, 0, 0, 0, 62, 
-	0, 17, 65, 0, 19, 0, 0, 0, 
-	0, 68, 27, 21, 0, 71, 23, 25, 
-	11, 0, 5, 0, 0, 1, 1, 35, 
-	74, 32, 7, 32, 50, 0, 82, 0, 
-	47, 0, 53, 0, 86, 0, 0, 44, 
-	78, 38, 41, 38, 29, 1, 9, 1, 
+	1, 0, 3, 0, 62, 98, 17, 59, 
+	59, 17, 59, 19, 15, 15, 0, 0, 
+	0, 0, 0, 0, 65, 0, 21, 68, 
+	0, 0, 23, 0, 0, 25, 33, 0, 
+	27, 29, 29, 71, 0, 31, 15, 0, 
+	5, 0, 0, 1, 1, 41, 82, 38, 
+	7, 7, 53, 0, 90, 0, 13, 0, 
+	78, 1, 74, 1, 56, 0, 94, 0, 
+	0, 50, 86, 44, 47, 9, 35, 1, 
+	11, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0
+	0
 };
 
 static const int http_req_parser_start = 1;
-static const int http_req_parser_first_final = 67;
+static const int http_req_parser_first_final = 64;
 static const int http_req_parser_error = 0;
 
 static const int http_req_parser_en_main = 1;
 
 
-#line 106 "./src/request.rl"
+#line 109 "./src/request.rl"
 
-void
-write_field(RequestParser* parser, char** field, const char* ptr)
+static inline PyObject*
+mark_obj(mark_buf_t* mbuf, const char* end)
 {
+    PyObject* val = NULL;
+    char* tmp = NULL;
+    size_t length = 0;
 
+    assert(mbuf != NULL && "unable to read from null buffer.");
+    assert(mbuf->pos != NULL && "attempt to read from null mark");
+    assert(end != NULL && "attempt to read to null end");
+    assert(end >= mbuf->pos && "unable to read backwards marks");
+    
+    length = end - mbuf->pos;
+    length += mbuf->used;
+
+    tmp = (char*) malloc(length * sizeof(char));
+    if(tmp == NULL) return NULL;
+
+    // Copy over stored data
+    if(mbuf->used > 0)
+    {
+        memcpy(tmp, mbuf->buf, mbuf->used);
+    }
+
+    // Copy new data
+    memcpy(tmp+mbuf->used, mbuf->pos, end-mbuf->pos);
+
+    mbuf->pos = NULL;
+    if(mbuf->used > 0) mbuf->used = 0;
+    
+    val = PyString_FromStringAndSize(tmp, length);
+    // If val is null, it'll trigger an error further up.
+
+    if(tmp != NULL) free(tmp);
+    return val;
 }
 
 void
-write_uri(RequestParser* parser, const char* ptr)
+add_field(RequestParser* parser, char* name, const char* ptr)
 {
-
+    PyObject* val = mark_obj(parser->mark, ptr);
+    assert(val != NULL && "FIXME: mark_obj returned null");
+    if(PyDict_SetItemString(parser->fields, name, val) < 0)
+    {
+        assert(0 && "FIXME: Failed to set field value");
+    }
+    Py_XDECREF(val);
 }
 
 void
-add_header(RequestParser* parser)
+add_uri(RequestParser* parser, const char* ptr)
 {
-
+    PyObject* val = mark_obj(parser->mark_uri, ptr);
+    assert(val != NULL && "FIXME: mark_obj returned null");
+    if(!PyDict_SetItemString(parser->fields, "uri", val) < 0)
+    {
+        assert(0 && "FIXME: Failed to set field value");
+    }
+    Py_XDECREF(val);
 }
 
 void
-save_mark_buf(RequestParser* parser)
+set_header_name(RequestParser* parser, const char* ptr)
 {
-
+    parser->hdr_name = mark_obj(parser->mark, ptr);
+    assert(parser->hdr_name != NULL && "FIXME: mark_obj returned null");
 }
 
 void
-save_mark_uri_buf(RequestParser* parser)
+add_header(RequestParser* parser, const char* ptr)
 {
+    PyObject* tuple = PyTuple_New(2);
+    PyObject* val = mark_obj(parser->mark, ptr);
 
+    assert(tuple != NULL && "FIXME: PyTuple_New return null");
+    assert(val != NULL && "FIXME: mark_obj returned null");
+    assert(parser->hdr_name != NULL && "cant set header without a name");
+    assert(parser->headers != NULL && "cant set header with invalid header list");
+
+    PyTuple_SET_ITEM(tuple, 0, parser->hdr_name);
+    PyTuple_SET_ITEM(tuple, 1, val);
+    
+    if(!PyList_Append(parser->headers, tuple)) goto error;
+    
+    parser->hdr_name = NULL;
+    goto success;
+
+error:
+    Py_XDECREF(tuple);
+success:
+    return;
+}
+
+void
+add_port(RequestParser* parser)
+{
+    PyObject* port = NULL;
+    
+    port = PyInt_FromLong(parser->port);
+    if(port == NULL) return;
+    
+    if(PyDict_SetItemString(parser->fields, "port", port) < 0)
+    {
+        Py_DECREF(port);
+    }
+    
+    return;
+}
+
+void
+add_version(RequestParser* parser)
+{
+    PyObject* major = NULL;
+    PyObject* minor = NULL;
+    PyObject* tuple = NULL;
+    
+    major = PyInt_FromLong(parser->vsn_major);
+    if(major == NULL) goto error;
+    
+    minor = PyInt_FromLong(parser->vsn_minor);
+    if(minor == NULL) goto error;
+    
+    tuple = PyTuple_New(2);
+    if(tuple == NULL) goto error;
+    
+    PyTuple_SET_ITEM(tuple, 0, major);
+    PyTuple_SET_ITEM(tuple, 1, minor);
+    
+    // SET_ITEM steals
+    major = NULL;
+    minor = NULL;
+    
+    if(PyDict_SetItemString(parser->fields, "version", tuple) < 0)
+    {
+        goto error;
+    }
+    
+    return;
+    
+error:
+    Py_XDECREF(major);
+    Py_XDECREF(minor);
+    Py_XDECREF(tuple);
+}
+
+void
+add_headers(RequestParser* parser)
+{
+    assert(parser->fields != NULL && "parser fields disappeared");
+    assert(parser->headers != NULL && "parser headers disappeared");
+
+    if(PyDict_SetItemString(parser->fields, "headers", parser->headers) < 0)
+    {
+        return;
+    }
+    
+    Py_DECREF(parser->headers);
+    parser->headers = NULL;
+}
+
+void
+save_mark_buf(mark_buf_t* buf, const char* end)
+{
+    size_t reqlen = 0;
+    size_t newlen = 0;
+    char* newbuf = NULL;
+
+    assert(buf->mark != NULL && "unable to save without mark set");
+    assert(end != NULL && "unable to save without end");
+    assert(end > buf->mark && "unable to save negative memory region");
+    assert(buf->len > 0 && "invalid mark_buf length");
+
+    reqlen = end - buf->pos;
+    newlen = buf->len;
+    while(reqlen > newlen - buf->used) newlen *= 2;
+
+    if(newlen > MAX_BUF_LEN) assert(0 && "FIXME: proper error handling");
+    
+    newbuf = (char*) malloc(newlen * sizeof(char));
+    assert(newbuf != NULL && "FIXME: proper error handling");
+
+    memcpy(newbuf, buf->buf, buf->used);
+    memcpy(newbuf+buf->used, buf->pos, reqlen);
+
+    free(buf->buf);
+    buf->pos = NULL+1;
+    buf->buf = newbuf;
+    buf->len = newlen;
+    buf->used += reqlen;
+}
+
+mark_buf_t*
+init_mark_buf()
+{
+    mark_buf_t* buf = (mark_buf_t*) malloc(sizeof(mark_buf_t));
+    if(buf == NULL) return NULL;
+    buf->pos = NULL;
+    buf->buf = (char*) malloc(DEF_BUF_SIZE * sizeof(char));
+    buf->len = DEF_BUF_SIZE;
+    buf->used = 0;
+    return buf;
+}
+
+void
+reinit_mark_buf(mark_buf_t* buf, const char* start)
+{
+    assert(buf != NULL && "mark_buf disappeared");
+    
+    if(buf->pos == NULL+1)
+    {
+        buf->pos = start;
+    }
+    else
+    {
+        assert(buf->used == 0 && "Saved mark means buf should be empty.");
+    }
+}
+
+PyObject*
+init_field_defaults()
+{
+    PyObject* fields = PyDict_New();
+    
+    if(fields == NULL) goto error;
+
+    if(PyDict_SetItemString(fields, "fragment", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "headers", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "host", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "method", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "path", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "port", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "query", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "scheme", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "uri", Py_None) < 0) goto error;
+    if(PyDict_SetItemString(fields, "version", Py_None) < 0) goto error;
+    
+    return fields;
+
+error:
+    Py_XDECREF(fields);
+    return NULL;
 }
 
 int
-int_req_parser(RequestParser *parser, PyObject* source)
+init_req_parser(RequestParser* parser)
 {
     int cs = 0;
     
-#line 261 "./src/request.c"
+#line 493 "./src/request.c"
 	{
 	cs = http_req_parser_start;
 	}
 
-#line 142 "./src/request.rl"
+#line 358 "./src/request.rl"
 
     parser->cs = cs;
     parser->error = 0;
@@ -270,31 +502,49 @@ int_req_parser(RequestParser *parser, PyObject* source)
     parser->body = NULL;
     parser->nread = 0;
     
-    parser->method = NULL;
-    parser->uri = NULL;
-    parser->scheme = NULL;
-    parser->host = NULL;
-    parser->port = 80;
-    parser->path = NULL;
-    parser->query = NULL;
-    parser->fragment = NULL;
-    
+    parser->fields = init_field_defaults();
+    if(parser->fields == NULL) goto error;
+
+    parser->port = 80;    
     parser->vsn_major = 0;
     parser->vsn_minor = 0;
 
-    parser->headers = NULL;
+    parser->headers = PyList_New(0);
+    if(parser->headers == NULL) goto error;
+
     parser->hdr_name = NULL;
-    parser->hdr_value = NULL;
 
-    parser->mark = NULL;
-    parser->mark_buf = NULL;
-    parser->mark_len = 0;
+    parser->mark = init_mark_buf();
+    if(parser->mark == NULL) goto error;
     
-    parser->mark_uri = NULL;
-    parser->mark_uri_buf = NULL;
-    parser->mark_uri_len = 0;
+    parser->mark_uri = init_mark_buf();
+    if(parser->mark_uri == NULL) goto error;
 
-    return(1);
+    return 1;
+
+error:
+    Py_XDECREF(parser->fields);
+    Py_XDECREF(parser->headers);
+    return 0;
+}
+
+void
+free_mark(mark_buf_t* buf)
+{
+    if(buf == NULL) return;
+    if(buf->buf != NULL) free(buf->buf);
+    free(buf);
+}
+
+void
+free_req_parser(RequestParser* parser)
+{
+    Py_XDECREF(parser->hdr_name);
+    Py_XDECREF(parser->headers);
+    Py_XDECREF(parser->fields);
+
+    free_mark(parser->mark);
+    free_mark(parser->mark_uri);
 }
 
 size_t
@@ -307,8 +557,13 @@ exec_req_parser(RequestParser* parser, const char* buffer, size_t len)
     p = buffer;
     pe = buffer + len;
     
+    reinit_mark_buf(parser->mark, p);
+    reinit_mark_buf(parser->mark_uri, p);
     
-#line 312 "./src/request.c"
+    while(p < pe && cs != http_req_parser_error)
+    {
+        
+#line 567 "./src/request.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -383,136 +638,133 @@ _match:
 		switch ( *_acts++ )
 		{
 	case 0:
-#line 10 "./src/request.rl"
+#line 16 "./src/request.rl"
 	{
-        assert(parser->mark == NULL && "won't overwrite a mark.");
-        parser->mark = p;
+        assert(parser->mark->pos == NULL && "won't overwrite a mark.");
+        parser->mark->pos = p;
     }
 	break;
 	case 1:
-#line 15 "./src/request.rl"
+#line 21 "./src/request.rl"
 	{
-        write_field(parser, &(parser->method), p);
+        add_field(parser, "method", p);
     }
 	break;
 	case 2:
-#line 19 "./src/request.rl"
+#line 25 "./src/request.rl"
 	{
-        write_field(parser, &(parser->scheme), p);
+        add_field(parser, "scheme", p);
     }
 	break;
 	case 3:
-#line 23 "./src/request.rl"
+#line 29 "./src/request.rl"
 	{
-        write_field(parser, &(parser->host), p);
+        add_field(parser, "host", p);
     }
 	break;
 	case 4:
-#line 27 "./src/request.rl"
+#line 33 "./src/request.rl"
 	{
         parser->port = 0;
     }
 	break;
 	case 5:
-#line 31 "./src/request.rl"
+#line 37 "./src/request.rl"
 	{
         parser->port = parser->port*10 + ((*p)-'0');
     }
 	break;
 	case 6:
-#line 35 "./src/request.rl"
+#line 41 "./src/request.rl"
 	{
-        write_field(parser, &(parser->path), p);
+        add_field(parser, "path", p);
     }
 	break;
 	case 7:
-#line 39 "./src/request.rl"
+#line 45 "./src/request.rl"
 	{
-        write_field(parser, &(parser->query), p);
+        add_field(parser, "query", p);
     }
 	break;
 	case 8:
-#line 43 "./src/request.rl"
+#line 49 "./src/request.rl"
 	{
-        write_field(parser, &(parser->fragment), p);
+        add_field(parser, "fragment", p);
     }
 	break;
 	case 9:
-#line 47 "./src/request.rl"
+#line 53 "./src/request.rl"
 	{
-        assert(parser->mark_uri != NULL && "wont overwrite uri mark");
-        parser->mark_uri = p;
+        assert(parser->mark_uri->pos != NULL && "wont overwrite uri mark");
+        parser->mark_uri->pos = p;
     }
 	break;
 	case 10:
-#line 52 "./src/request.rl"
+#line 58 "./src/request.rl"
 	{
-        write_uri(parser, p);
+        add_uri(parser, p);
     }
 	break;
 	case 11:
-#line 56 "./src/request.rl"
+#line 62 "./src/request.rl"
 	{
         parser->vsn_major = 0;
     }
 	break;
 	case 12:
-#line 60 "./src/request.rl"
+#line 66 "./src/request.rl"
 	{
         parser->vsn_major = parser->vsn_major*10 + ((*p)-'0');
     }
 	break;
 	case 13:
-#line 64 "./src/request.rl"
+#line 70 "./src/request.rl"
 	{
         parser->vsn_minor = 0;
     }
 	break;
 	case 14:
-#line 68 "./src/request.rl"
+#line 74 "./src/request.rl"
 	{
         parser->vsn_minor = parser->vsn_minor * 10 + ((*p)-'0');
     }
 	break;
 	case 15:
-#line 72 "./src/request.rl"
+#line 78 "./src/request.rl"
 	{
-        assert(parser->method != NULL && "method not set before header name");
-        assert(parser->uri != NULL && "uri not set before header name");
-        assert(parser->hdr_field == NULL && "header name already marked");
-        assert(parser->hdr_value == NULL && "header value already marked");
-        
-        assert(parser->mark == NULL && "wont overwrite a mark");
-        parser->mark = p;
+        assert(parser->hdr_field == NULL && "header name already marked");        
+        assert(parser->mark->pos == NULL && "wont overwrite a mark");
+        parser->mark->pos = p;
     }
 	break;
 	case 16:
-#line 82 "./src/request.rl"
+#line 84 "./src/request.rl"
 	{
-        write_field(parser, &(parser->hdr_name), p);
+        set_header_name(parser, p);
     }
 	break;
 	case 17:
-#line 86 "./src/request.rl"
+#line 88 "./src/request.rl"
 	{
         assert(parser->hdr_name != NULL && "value must have a name");
-        parser->mark = p;
+        assert(parser->mark->pos == NULL && "wont overwrite a mark");
+        parser->mark->pos = p;
     }
 	break;
 	case 18:
-#line 91 "./src/request.rl"
+#line 94 "./src/request.rl"
 	{
-        write_field(parser, &(parser->hdr_value), p);
-        add_header(parser);
+        add_header(parser, p);
     }
 	break;
 	case 19:
-#line 96 "./src/request.rl"
+#line 98 "./src/request.rl"
 	{
         parser->body = p;
+        {p++; goto _out; }
     }
 	break;
-#line 516 "./src/request.c"
+#line 768 "./src/request.c"
 		}
 	}
 
@@ -525,22 +777,31 @@ _again:
 	_out: {}
 	}
 
-#line 187 "./src/request.rl"
-    
+#line 426 "./src/request.rl"
+    }
+
     parser->cs = cs;
     parser->nread += p - buffer;
     
     assert(p < pe && "parser boundary error");
-    
-    if(parser->mark != NULL)
+
+    if(parser->body != NULL)
     {
-        save_mark_buf(parser);
+        assert(parser->mark->pos == NULL && "finished parsing with a mark");
+        assert(parser->mark_uri->pos == NULL && "finished parsing with a uri");
+        assert(parser->hdr_name == NULL && "finished parsing with a hdr name");
+        
+        add_port(parser);
+        add_version(parser);
+        add_headers(parser);
     }
-    
-    if(parser->mark_uri != NULL)
+    else if(parser->body == NULL && parser->cs == http_req_parser_error)
     {
-        save_mark_uri_buf(parser);
+        return 0;
     }
+
+    if(parser->mark->pos != NULL) save_mark_buf(parser->mark, p);
+    if(parser->mark_uri->pos != NULL) save_mark_buf(parser->mark_uri, p);
     
-    return parser->nread;    
+    return 1;
 }

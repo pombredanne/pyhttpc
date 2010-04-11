@@ -4,39 +4,33 @@
 #include <Python.h>
 
 typedef struct {
+    const char* pos;
+    char*       buf;
+    size_t      len;
+    size_t      used;
+} mark_buf_t;
+
+typedef struct {
     int         cs;
     int         error;
 
     const char* body;
     size_t      nread;
 
-    char*       method;
-    char*       uri;
-    char*       scheme;
-    char*       host;
+    PyObject*   fields;
     int         port;
-    char*       path;
-    char*       query;
-    char*       fragment;
-
     int         vsn_major;
     int         vsn_minor;
 
-    PyObject*   headers; 
-    char*       hdr_name;
-    char*       hdr_value;
+    PyObject*   headers;
+    PyObject*   hdr_name;
 
-    const char* mark;
-    char*       mark_buf;
-    size_t      mark_len;
-
-    const char* mark_uri;
-    char*       mark_uri_buf;
-    size_t      mark_uri_len;
-
+    mark_buf_t* mark;
+    mark_buf_t* mark_uri;
 } RequestParser;
 
-int init_req_parser(RequestParser* parser, PyObject* fetch_func);
+int init_req_parser(RequestParser* parser);
+void free_req_parser(RequestParser* parser);
 size_t exec_req_parser(RequestParser* parser, const char* buffer, size_t len);
 char* get_req_error(RequestParser* parser);
 

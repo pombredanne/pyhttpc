@@ -5,6 +5,17 @@
 """\
 An HTTP parser written with Ragel.
 """
+# I haven't the sligthest, but this appears to fix
+# all those EINTR errors. Pulled and adapted for OS X
+# from twisted bug #733
+# 
+# Definitely forgot to comment this out before distribution.
+#
+import ctypes
+import signal
+libc = ctypes.CDLL("libc.dylib")
+libc.siginterrupt(signal.SIGCHLD, 0)
+
 
 import os
 import subprocess as sp
@@ -52,7 +63,7 @@ setup(
 
     ext_modules = [
         Extension("pyhttpc", sources=[
-            "./src/module.c",
+            "./src/pyhttpc.c",
             "./src/request.c"
         ])
     ],
