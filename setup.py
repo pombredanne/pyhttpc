@@ -52,7 +52,8 @@ native = Feature(
     standard=True,
     ext_modules = [
         Extension("pyhttpc.native", [
-            "./c_src/native.c",
+            "./c_src/buffer.c",
+            "./c_src/pyhttpc.c",
             "./c_src/request.c"
         ]),
     ],

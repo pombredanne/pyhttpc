@@ -1,23 +1,20 @@
 
 #line 1 "./c_src/request.rl"
 
+#include "request.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "request.h"
-
-#define DEF_BUF_SIZE 1024
-#define MAX_BUF_LEN  128*1024
-
 #define WHERE fprintf(stderr, "%s(%d):%s\n", __FILE__, __LINE__, __FUNCTION__)
 
 
-#line 106 "./c_src/request.rl"
+#line 94 "./c_src/request.rl"
 
 
 
-#line 21 "./c_src/request.c"
+#line 18 "./c_src/request.c"
 static const char _http_req_parser_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
@@ -239,331 +236,131 @@ static const int http_req_parser_error = 0;
 static const int http_req_parser_en_main = 1;
 
 
-#line 109 "./c_src/request.rl"
+#line 97 "./c_src/request.rl"
 
-static inline PyObject*
-mark_obj(mark_buf_t* mbuf, const char* end)
-{
-    PyObject* val = NULL;
-    char* tmp = NULL;
-    size_t length = 0;
+// void
+// add_field(http_req_parser_t* parser, char* name, const char* ptr)
+// {
+//     PyObject* val = mark_obj(parser->mark, ptr);
+//     assert(val != NULL && "FIXME: mark_obj returned null");
+//     if(PyDict_SetItemString(parser->fields, name, val) < 0)
+//     {
+//         assert(0 && "FIXME: Failed to set field value");
+//     }
+//     Py_XDECREF(val);
+// }
 
-    assert(mbuf != NULL && "unable to read from null buffer.");
-    assert(mbuf->pos != NULL && "attempt to read from null mark");
-    assert(end != NULL && "attempt to read to null end");
-    assert(end >= mbuf->pos && "unable to read backwards marks");
-    
-    length = end - mbuf->pos;
-    length += mbuf->used;
+// void
+// add_uri(http_req_parser_t* parser, const char* ptr)
+// {
+//     PyObject* val = mark_obj(parser->mark_uri, ptr);
+//     assert(val != NULL && "FIXME: mark_obj returned null");
+//     if(!PyDict_SetItemString(parser->fields, "uri", val) < 0)
+//     {
+//         assert(0 && "FIXME: Failed to set field value");
+//     }
+//     Py_XDECREF(val);
+// }
 
-    tmp = (char*) malloc(length * sizeof(char));
-    if(tmp == NULL) return NULL;
+// void
+// set_header_name(http_req_parser_t* parser, const char* ptr)
+// {
+//     parser->hdr_name = mark_obj(parser->mark, ptr);
+//     assert(parser->hdr_name != NULL && "FIXME: mark_obj returned null");
+// }
 
-    // Copy over stored data
-    if(mbuf->used > 0)
-    {
-        memcpy(tmp, mbuf->buf, mbuf->used);
-    }
+// void
+// add_header(http_req_parser_t* parser, const char* ptr)
+// {
+//     PyObject* tuple = PyTuple_New(2);
+//     PyObject* val = mark_obj(parser->mark, ptr);
+// 
+//     assert(tuple != NULL && "FIXME: PyTuple_New return null");
+//     assert(val != NULL && "FIXME: mark_obj returned null");
+//     assert(parser->hdr_name != NULL && "cant set header without a name");
+//     assert(parser->headers != NULL && "cant set header without header list");
+// 
+//     PyTuple_SET_ITEM(tuple, 0, parser->hdr_name);
+//     PyTuple_SET_ITEM(tuple, 1, val);
+//     
+//     if(!PyList_Append(parser->headers, tuple)) goto error;
+//     
+//     parser->hdr_name = NULL;
+//     goto success;
+// 
+// error:
+//     Py_XDECREF(tuple);
+// success:
+//     return;
+// }
 
-    // Copy new data
-    memcpy(tmp+mbuf->used, mbuf->pos, end-mbuf->pos);
+// void
+// add_version(http_req_parser_t* parser)
+// {
+//     PyObject* major = NULL;
+//     PyObject* minor = NULL;
+//     PyObject* tuple = NULL;
+//     
+//     major = PyInt_FromLong(parser->vsn_major);
+//     if(major == NULL) goto error;
+//     
+//     minor = PyInt_FromLong(parser->vsn_minor);
+//     if(minor == NULL) goto error;
+//     
+//     tuple = PyTuple_New(2);
+//     if(tuple == NULL) goto error;
+//     
+//     PyTuple_SET_ITEM(tuple, 0, major);
+//     PyTuple_SET_ITEM(tuple, 1, minor);
+//     
+//     // SET_ITEM steals
+//     major = NULL;
+//     minor = NULL;
+//     
+//     if(PyDict_SetItemString(parser->fields, "version", tuple) < 0)
+//     {
+//         goto error;
+//     }
+//     
+//     return;
+//     
+// error:
+//     Py_XDECREF(major);
+//     Py_XDECREF(minor);
+//     Py_XDECREF(tuple);
+// }
 
-    mbuf->pos = NULL;
-    if(mbuf->used > 0) mbuf->used = 0;
-    
-    val = PyString_FromStringAndSize(tmp, length);
-    // If val is null, it'll trigger an error further up.
-
-    if(tmp != NULL) free(tmp);
-    return val;
-}
-
-void
-add_field(http_req_parser_t* parser, char* name, const char* ptr)
-{
-    PyObject* val = mark_obj(parser->mark, ptr);
-    assert(val != NULL && "FIXME: mark_obj returned null");
-    if(PyDict_SetItemString(parser->fields, name, val) < 0)
-    {
-        assert(0 && "FIXME: Failed to set field value");
-    }
-    Py_XDECREF(val);
-}
-
-void
-add_uri(http_req_parser_t* parser, const char* ptr)
-{
-    PyObject* val = mark_obj(parser->mark_uri, ptr);
-    assert(val != NULL && "FIXME: mark_obj returned null");
-    if(!PyDict_SetItemString(parser->fields, "uri", val) < 0)
-    {
-        assert(0 && "FIXME: Failed to set field value");
-    }
-    Py_XDECREF(val);
-}
-
-void
-set_header_name(http_req_parser_t* parser, const char* ptr)
-{
-    parser->hdr_name = mark_obj(parser->mark, ptr);
-    assert(parser->hdr_name != NULL && "FIXME: mark_obj returned null");
-}
-
-void
-add_header(http_req_parser_t* parser, const char* ptr)
-{
-    PyObject* tuple = PyTuple_New(2);
-    PyObject* val = mark_obj(parser->mark, ptr);
-
-    assert(tuple != NULL && "FIXME: PyTuple_New return null");
-    assert(val != NULL && "FIXME: mark_obj returned null");
-    assert(parser->hdr_name != NULL && "cant set header without a name");
-    assert(parser->headers != NULL && "cant set header without header list");
-
-    PyTuple_SET_ITEM(tuple, 0, parser->hdr_name);
-    PyTuple_SET_ITEM(tuple, 1, val);
-    
-    if(!PyList_Append(parser->headers, tuple)) goto error;
-    
-    parser->hdr_name = NULL;
-    goto success;
-
-error:
-    Py_XDECREF(tuple);
-success:
-    return;
-}
-
-void
-add_port(http_req_parser_t* parser)
-{
-    PyObject* port = NULL;
-    
-    port = PyInt_FromLong(parser->port);
-    if(port == NULL) return;
-    
-    if(PyDict_SetItemString(parser->fields, "port", port) < 0)
-    {
-        Py_DECREF(port);
-    }
-    
-    return;
-}
-
-void
-add_version(http_req_parser_t* parser)
-{
-    PyObject* major = NULL;
-    PyObject* minor = NULL;
-    PyObject* tuple = NULL;
-    
-    major = PyInt_FromLong(parser->vsn_major);
-    if(major == NULL) goto error;
-    
-    minor = PyInt_FromLong(parser->vsn_minor);
-    if(minor == NULL) goto error;
-    
-    tuple = PyTuple_New(2);
-    if(tuple == NULL) goto error;
-    
-    PyTuple_SET_ITEM(tuple, 0, major);
-    PyTuple_SET_ITEM(tuple, 1, minor);
-    
-    // SET_ITEM steals
-    major = NULL;
-    minor = NULL;
-    
-    if(PyDict_SetItemString(parser->fields, "version", tuple) < 0)
-    {
-        goto error;
-    }
-    
-    return;
-    
-error:
-    Py_XDECREF(major);
-    Py_XDECREF(minor);
-    Py_XDECREF(tuple);
-}
-
-void
-add_headers(http_req_parser_t* parser)
-{
-    assert(parser->fields != NULL && "parser fields disappeared");
-    assert(parser->headers != NULL && "parser headers disappeared");
-
-    if(PyDict_SetItemString(parser->fields, "headers", parser->headers) < 0)
-    {
-        return;
-    }
-    
-    Py_DECREF(parser->headers);
-    parser->headers = NULL;
-}
-
-void
-save_mark_buf(mark_buf_t* buf, const char* end)
-{
-    size_t reqlen = 0;
-    size_t newlen = 0;
-    char* newbuf = NULL;
-
-    assert(buf->mark != NULL && "unable to save without mark set");
-    assert(end != NULL && "unable to save without end");
-    assert(end > buf->mark && "unable to save negative memory region");
-    assert(buf->len > 0 && "invalid mark_buf length");
-
-    reqlen = end - buf->pos;
-    newlen = buf->len;
-    while(reqlen > newlen - buf->used) newlen *= 2;
-
-    if(newlen > MAX_BUF_LEN) assert(0 && "FIXME: proper error handling");
-    
-    newbuf = (char*) malloc(newlen * sizeof(char));
-    assert(newbuf != NULL && "FIXME: proper error handling");
-
-    memcpy(newbuf, buf->buf, buf->used);
-    memcpy(newbuf+buf->used, buf->pos, reqlen);
-
-    free(buf->buf);
-    buf->pos = NULL+1;
-    buf->buf = newbuf;
-    buf->len = newlen;
-    buf->used += reqlen;
-}
-
-mark_buf_t*
-init_mark_buf(void)
-{
-    mark_buf_t* buf = (mark_buf_t*) malloc(sizeof(mark_buf_t));
-    if(buf == NULL) return NULL;
-    buf->pos = NULL;
-    buf->buf = (char*) malloc(DEF_BUF_SIZE * sizeof(char));
-    buf->len = DEF_BUF_SIZE;
-    buf->used = 0;
-    return buf;
-}
-
-void
-reinit_mark_buf(mark_buf_t* buf, const char* start)
-{
-    assert(buf != NULL && "mark_buf disappeared");
-    
-    if(buf->pos == NULL+1)
-    {
-        buf->pos = start;
-    }
-    else
-    {
-        assert(buf->used == 0 && "Saved mark means buf should be empty.");
-    }
-}
-
-PyObject*
-init_field_defaults(void)
-{
-    PyObject* fields = PyDict_New();
-    
-    if(fields == NULL) goto error;
-
-    if(PyDict_SetItemString(fields, "fragment", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "headers", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "host", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "method", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "path", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "port", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "query", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "scheme", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "uri", Py_None) < 0) goto error;
-    if(PyDict_SetItemString(fields, "version", Py_None) < 0) goto error;
-    
-    return fields;
-
-error:
-    Py_XDECREF(fields);
-    return NULL;
-}
+// void
+// add_headers(http_req_parser_t* parser)
+// {
+//     assert(parser->fields != NULL && "parser fields disappeared");
+//     assert(parser->headers != NULL && "parser headers disappeared");
+// 
+//     if(PyDict_SetItemString(parser->fields, "headers", parser->headers) < 0)
+//     {
+//         return;
+//     }
+//     
+//     Py_DECREF(parser->headers);
+//     parser->headers = NULL;
+// }
 
 int
-init_req_parser(http_req_parser_t* parser)
+exec_req_parser(RequestParser* parser)
 {
-    int cs = 0;
-    
-#line 493 "./c_src/request.c"
-	{
-	cs = http_req_parser_start;
-	}
-
-#line 358 "./c_src/request.rl"
-
-    parser->cs = cs;
-    parser->error = 0;
-
-    parser->body = NULL;
-    parser->nread = 0;
-    
-    parser->fields = init_field_defaults();
-    if(parser->fields == NULL) goto error;
-
-    parser->port = 80;    
-    parser->vsn_major = 0;
-    parser->vsn_minor = 0;
-
-    parser->headers = PyList_New(0);
-    if(parser->headers == NULL) goto error;
-
-    parser->hdr_name = NULL;
-
-    parser->mark = init_mark_buf();
-    if(parser->mark == NULL) goto error;
-    
-    parser->mark_uri = init_mark_buf();
-    if(parser->mark_uri == NULL) goto error;
-
-    return 1;
-
-error:
-    Py_XDECREF(parser->fields);
-    Py_XDECREF(parser->headers);
-    return 0;
-}
-
-void
-free_mark(mark_buf_t* buf)
-{
-    if(buf == NULL) return;
-    if(buf->buf != NULL) free(buf->buf);
-    free(buf);
-}
-
-void
-free_req_parser(http_req_parser_t* parser)
-{
-    Py_XDECREF(parser->hdr_name);
-    Py_XDECREF(parser->headers);
-    Py_XDECREF(parser->fields);
-
-    free_mark(parser->mark);
-    free_mark(parser->mark_uri);
-}
-
-int
-exec_req_parser(http_req_parser_t* parser, const char* buffer, size_t len)
-{
+    Request* request = parser->request;
     const char* p;
     const char* pe;
     int cs = parser->cs;
     
-    p = buffer;
-    pe = buffer + len;
+    p = parser->buffer;
+    pe = parser->buffer + parser->buflen;
     
-    reinit_mark_buf(parser->mark, p);
-    reinit_mark_buf(parser->mark_uri, p);
+    reinit_buffer(parser->genbuf, p);
+    reinit_buffer(parser->uribuf, p);
     
-    while(p < pe && cs != http_req_parser_error)
-    {
-        
-#line 567 "./c_src/request.c"
+    
+#line 364 "./c_src/request.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -638,133 +435,124 @@ _match:
 		switch ( *_acts++ )
 		{
 	case 0:
-#line 16 "./c_src/request.rl"
+#line 13 "./c_src/request.rl"
 	{
-        assert(parser->mark->pos == NULL && "won't overwrite a mark.");
-        parser->mark->pos = p;
+        assert(parser->genbuf->pos == NULL && "won't overwrite a mark.");
+        parser->genbuf->pos = p;
     }
 	break;
 	case 1:
-#line 21 "./c_src/request.rl"
+#line 18 "./c_src/request.rl"
 	{
-        add_field(parser, "method", p);
     }
 	break;
 	case 2:
-#line 25 "./c_src/request.rl"
+#line 21 "./c_src/request.rl"
 	{
-        add_field(parser, "scheme", p);
     }
 	break;
 	case 3:
-#line 29 "./c_src/request.rl"
+#line 24 "./c_src/request.rl"
 	{
-        add_field(parser, "host", p);
     }
 	break;
 	case 4:
-#line 33 "./c_src/request.rl"
+#line 27 "./c_src/request.rl"
 	{
-        parser->port = 0;
+        request->port = 0;
     }
 	break;
 	case 5:
-#line 37 "./c_src/request.rl"
+#line 31 "./c_src/request.rl"
 	{
-        parser->port = parser->port*10 + ((*p)-'0');
+        request->port = request->port*10 + ((*p)-'0');
     }
 	break;
 	case 6:
-#line 41 "./c_src/request.rl"
+#line 35 "./c_src/request.rl"
 	{
-        add_field(parser, "path", p);
     }
 	break;
 	case 7:
-#line 45 "./c_src/request.rl"
+#line 38 "./c_src/request.rl"
 	{
-        add_field(parser, "query", p);
     }
 	break;
 	case 8:
-#line 49 "./c_src/request.rl"
+#line 41 "./c_src/request.rl"
 	{
-        add_field(parser, "fragment", p);
     }
 	break;
 	case 9:
-#line 53 "./c_src/request.rl"
+#line 44 "./c_src/request.rl"
 	{
-        assert(parser->mark_uri->pos != NULL && "wont overwrite uri mark");
-        parser->mark_uri->pos = p;
+        assert(parser->uribuf->pos != NULL && "wont overwrite uri mark");
+        parser->uribuf->pos = p;
     }
 	break;
 	case 10:
-#line 58 "./c_src/request.rl"
+#line 49 "./c_src/request.rl"
 	{
-        add_uri(parser, p);
     }
 	break;
 	case 11:
-#line 62 "./c_src/request.rl"
+#line 52 "./c_src/request.rl"
 	{
-        parser->vsn_major = 0;
+        request->vsn_major = 0;
     }
 	break;
 	case 12:
-#line 66 "./c_src/request.rl"
+#line 56 "./c_src/request.rl"
 	{
-        parser->vsn_major = parser->vsn_major*10 + ((*p)-'0');
+        request->vsn_major = request->vsn_major*10 + ((*p)-'0');
     }
 	break;
 	case 13:
-#line 70 "./c_src/request.rl"
+#line 60 "./c_src/request.rl"
 	{
-        parser->vsn_minor = 0;
+        request->vsn_minor = 0;
     }
 	break;
 	case 14:
-#line 74 "./c_src/request.rl"
+#line 64 "./c_src/request.rl"
 	{
-        parser->vsn_minor = parser->vsn_minor * 10 + ((*p)-'0');
+        request->vsn_minor = request->vsn_minor * 10 + ((*p)-'0');
     }
 	break;
 	case 15:
-#line 78 "./c_src/request.rl"
+#line 68 "./c_src/request.rl"
 	{
-        assert(parser->hdr_field == NULL && "header name already marked");        
-        assert(parser->mark->pos == NULL && "wont overwrite a mark");
-        parser->mark->pos = p;
+        assert(request->hdr_field == NULL && "header name already marked");        
+        assert(parser->genbuf->pos == NULL && "wont overwrite a mark");
+        parser->genbuf->pos = p;
     }
 	break;
 	case 16:
-#line 84 "./c_src/request.rl"
+#line 74 "./c_src/request.rl"
 	{
-        set_header_name(parser, p);
     }
 	break;
 	case 17:
-#line 88 "./c_src/request.rl"
+#line 77 "./c_src/request.rl"
 	{
-        assert(parser->hdr_name != NULL && "value must have a name");
-        assert(parser->mark->pos == NULL && "wont overwrite a mark");
-        parser->mark->pos = p;
+        assert(request->hdr_name != NULL && "value must have a name");
+        assert(parser->genbuf->pos == NULL && "wont overwrite a mark");
+        parser->genbuf->pos = p;
     }
 	break;
 	case 18:
-#line 94 "./c_src/request.rl"
+#line 83 "./c_src/request.rl"
 	{
-        add_header(parser, p);
     }
 	break;
 	case 19:
-#line 98 "./c_src/request.rl"
+#line 86 "./c_src/request.rl"
 	{
         parser->body = p;
         {p++; goto _out; }
     }
 	break;
-#line 768 "./c_src/request.c"
+#line 556 "./c_src/request.c"
 		}
 	}
 
@@ -777,11 +565,10 @@ _again:
 	_out: {}
 	}
 
-#line 426 "./c_src/request.rl"
-    }
+#line 220 "./c_src/request.rl"
 
     parser->cs = cs;
-    parser->nread += p - buffer;
+    parser->nread += p - parser->buffer;
     
     assert(p < pe && "parser boundary error");
 
@@ -790,24 +577,298 @@ _again:
         assert(parser->mark->pos == NULL && "finished parsing with a mark");
         assert(parser->mark_uri->pos == NULL && "finished parsing with a uri");
         assert(parser->hdr_name == NULL && "finished parsing with a hdr name");
-        
-        add_port(parser);
-        add_version(parser);
-        add_headers(parser);
     }
     else if(parser->body == NULL && parser->cs == http_req_parser_error)
     {
         return 0;
     }
 
-    if(parser->mark->pos != NULL) save_mark_buf(parser->mark, p);
-    if(parser->mark_uri->pos != NULL) save_mark_buf(parser->mark_uri, p);
+    fprintf(stderr, "STATE: %d\n", parser->cs);
+
+    if(parser->genbuf->pos != NULL) save_buffer(parser->genbuf, p);
+    if(parser->uribuf->pos != NULL) save_buffer(parser->uribuf, p);
     
     return 1;
 }
 
-const char*
-get_req_error(http_req_parser_t* parser)
+//
+//  Request Class
+//
+
+static PyObject*
+Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
-    return "An error occurred.";
+    Request* self = NULL;
+    //PyObject* parser = NULL;
+
+    self = (Request*) type->tp_alloc(type, 0);
+    if(self == NULL) goto error;
+
+    self->parser = NULL;
+    self->method = NULL;
+    self->uri = NULL;
+    self->scheme = NULL;
+    self->host = NULL;
+    self->port = 80;
+    self->path = NULL;
+    self->query = NULL;
+    self->fragment = NULL;
+    self->version = NULL;
+    self->vsn_major = 0;
+    self->vsn_minor = 0;
+    self->headers = NULL;
+    self->hdr_name = NULL;
+    self->body = NULL;
+
+    goto success;
+
+error:
+    Py_XDECREF(self);
+    self = NULL;
+
+success:
+    return (PyObject*) self;
 }
+
+static void
+Request_dealloc(Request* self)
+{
+    Py_XDECREF(self->parser);
+    Py_XDECREF(self->method);
+    Py_XDECREF(self->uri);
+    Py_XDECREF(self->scheme);
+    Py_XDECREF(self->host);
+    Py_XDECREF(self->path);
+    Py_XDECREF(self->query);
+    Py_XDECREF(self->fragment);
+    Py_XDECREF(self->version);
+    Py_XDECREF(self->headers);
+    Py_XDECREF(self->hdr_name);
+    Py_XDECREF(self->body);
+}
+
+static PyMemberDef
+Request_members[] = {
+    {"method", T_OBJECT, offsetof(Request, method), READONLY,
+        "This request's method as a string."},
+    {"uri", T_OBJECT, offsetof(Request, uri), READONLY,
+        "This request's original URI."},
+    {"scheme", T_OBJECT, offsetof(Request, scheme), READONLY,
+        "This request's URI scheme as a string."},
+    {"host", T_OBJECT, offsetof(Request, host), READONLY,
+        "This request's URI host as a string."},
+    {"port", T_OBJECT, offsetof(Request, port), READONLY,
+        "This request's URI port as a string."},
+    {"path", T_OBJECT, offsetof(Request, path), READONLY,
+        "This request's URI path as a string."},
+    {"query", T_OBJECT, offsetof(Request, query), READONLY,
+        "This request's URI query string as a string."},
+    {"fragment", T_OBJECT, offsetof(Request, fragment), READONLY,
+        "This request's URI fragment as a string."},
+    {"version", T_OBJECT, offsetof(Request, version), READONLY,
+        "This request's version as a two-tuple."},
+    {"headers", T_OBJECT, offsetof(Request, headers), READONLY,
+        "This request's headers as a list of two-tuples."},
+    {NULL}
+};
+
+static PyMethodDef
+Request_methods[] = {
+    {NULL}
+};
+
+PyTypeObject RequestType = {
+    PyObject_HEAD_INIT(NULL)
+    0,                                          /*ob_size*/
+    "pyhttpc.native.Request",                   /*tp_name*/
+    sizeof(Request),                            /*tp_basicsize*/
+    0,                                          /*tp_itemsize*/
+    (destructor)Request_dealloc,                /*tp_dealloc*/
+    0,                                          /*tp_print*/
+    0,                                          /*tp_getattr*/
+    0,                                          /*tp_setattr*/
+    0,                                          /*tp_compare*/
+    0,                                          /*tp_repr*/
+    0,                                          /*tp_as_number*/
+    0,                                          /*tp_as_sequence*/
+    0,                                          /*tp_as_mapping*/
+    0,                                          /*tp_hash*/
+    0,                                          /*tp_call*/
+    0,                                          /*tp_str*/
+    0,                                          /*tp_getattro*/
+    0,                                          /*tp_setattro*/
+    0,                                          /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT,                         /*tp_flags*/
+    "PyHttpC Request",                          /*tp_doc*/
+    0,		                                    /*tp_traverse*/
+    0,		                                    /*tp_clear*/
+    0,		                                    /*tp_richcompare*/
+    0,		                                    /*tp_weaklistoffset*/
+    0,		                                    /*tp_iter*/
+    0,		                                    /*tp_iternext*/
+    Request_methods,                            /*tp_methods*/
+    Request_members,                            /*tp_members*/
+    0,                                          /*tp_getset*/
+    0,                                          /*tp_base*/
+    0,                                          /*tp_dict*/
+    0,                                          /*tp_descr_get*/
+    0,                                          /*tp_descr_set*/
+    0,                                          /*tp_dictoffset*/
+    0,                                          /*tp_init*/
+    0,                                          /*tp_alloc*/
+    Request_new,                                /*tp_new*/
+};
+
+//
+// RequestParser Class
+//
+
+static PyObject*
+RequestParser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
+{
+    RequestParser* self = NULL;
+    PyObject* src = NULL;
+    int cs = 0;
+    
+    self = (RequestParser*) type->tp_alloc(type, 0);
+    if(self == NULL) goto error;
+
+    if(!PyArg_ParseTuple(args, "O", &src)) goto error;
+    if(!PyIter_Check(src))
+    {
+        PyErr_SetString(PyExc_TypeError, "Data source must be an iterator.");
+        goto error;
+    }
+    self->source = PyObject_GetIter(src);
+    if(self->source == NULL)
+    {
+        if(!PyErr_Occurred())
+        {
+            PyErr_SetString(PyExc_TypeError, "Unable create source iterator.");
+        }
+        goto error;
+    }
+
+    self->cs = 0;
+    self->current = NULL;
+    self->bufpos = NULL;
+    self->buffer = NULL;
+    self->buflen = 0;
+    self->nread = 0;
+    self->request = NULL;
+    self->genbuf = init_buffer();
+    if(self->genbuf == NULL)
+    {
+        PyErr_NoMemory();
+        goto error;
+    }
+    self->uribuf = init_buffer();
+    if(self->uribuf == NULL)
+    {
+        PyErr_NoMemory();
+        goto error;
+    }
+
+    
+#line 774 "./c_src/request.c"
+	{
+	cs = http_req_parser_start;
+	}
+
+#line 424 "./c_src/request.rl"
+    self->cs = cs;
+
+    goto success;
+
+error:
+    Py_XDECREF(self);
+    self = NULL;
+
+success:
+    return (PyObject*) self;
+}
+
+static void
+RequestParser_dealloc(RequestParser* self)
+{
+    Py_XDECREF(self->source);
+    Py_XDECREF(self->current);
+    Py_XDECREF(self->request);
+    free_buffer(self->genbuf);
+    free_buffer(self->uribuf);
+}
+
+PyObject*
+RequestParser_GET_ITER(RequestParser* self)
+{
+    Py_INCREF(self);
+    return (PyObject*) self;
+}
+
+PyObject*
+RequestParser_ITER_NEXT(RequestParser* self)
+{
+    PyObject* tpl = NULL;
+    PyObject* req = NULL;
+    
+    tpl = Py_BuildValue("(O)", self);
+    if(tpl == NULL) return NULL;
+
+    req = PyObject_CallObject((PyObject*) &RequestType, tpl);
+
+    Py_XDECREF(tpl);
+    return req;
+}
+
+static PyMemberDef
+RequestParser_members[] = {
+    {NULL}
+};
+
+static PyMethodDef
+RequestParser_methods[] = {
+    {NULL}
+};
+
+PyTypeObject RequestParserType = {
+    PyObject_HEAD_INIT(NULL)
+    0,                                          /*ob_size*/
+    "pyhttpc.native.RequestParser",             /*tp_name*/
+    sizeof(RequestParser),                      /*tp_basicsize*/
+    0,                                          /*tp_itemsize*/
+    (destructor)RequestParser_dealloc,          /*tp_dealloc*/
+    0,                                          /*tp_print*/
+    0,                                          /*tp_getattr*/
+    0,                                          /*tp_setattr*/
+    0,                                          /*tp_compare*/
+    0,                                          /*tp_repr*/
+    0,                                          /*tp_as_number*/
+    0,                                          /*tp_as_sequence*/
+    0,                                          /*tp_as_mapping*/
+    0,                                          /*tp_hash*/
+    0,                                          /*tp_call*/
+    0,                                          /*tp_str*/
+    0,                                          /*tp_getattro*/
+    0,                                          /*tp_setattro*/
+    0,                                          /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_ITER,  /*tp_flags*/
+    "PyHttpC Request Parser",                   /*tp_doc*/
+    0,		                                    /*tp_traverse*/
+    0,		                                    /*tp_clear*/
+    0,		                                    /*tp_richcompare*/
+    0,		                                    /*tp_weaklistoffset*/
+    (getiterfunc)RequestParser_GET_ITER,		/*tp_iter*/
+    (iternextfunc)RequestParser_ITER_NEXT,		/*tp_iternext*/
+    RequestParser_methods,                      /*tp_methods*/
+    RequestParser_members,                      /*tp_members*/
+    0,                                          /*tp_getset*/
+    0,                                          /*tp_base*/
+    0,                                          /*tp_dict*/
+    0,                                          /*tp_descr_get*/
+    0,                                          /*tp_descr_set*/
+    0,                                          /*tp_dictoffset*/
+    0,                                          /*tp_init*/
+    0,                                          /*tp_alloc*/
+    RequestParser_new,                          /*tp_new*/
+};
+

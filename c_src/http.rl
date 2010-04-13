@@ -15,7 +15,7 @@
 
     # Character classes
 
-    lws = 9 | 32;
+    lws = (" " | "\t");
     safe = ("$" | "-" | "_" | ".");
     extra = ("!" | "*" | "'" | "(" | ")" | ",");
     escape = ("%" xdigit xdigit);
@@ -23,9 +23,9 @@
     uchar = (unreserved | escape);
     pchar = (uchar | "/" | ";" | ":" | "@" | "&" | "=");
     ctl = (cntrl | 127);
-    tspecials = ("(" | ")" | "<" | ">" | "@" | "," | ";" | ":"
-                     | "\\" | "\"" | "/" | "[" | "]" | "?" | "="
-                     | "{" | "}" | " " | "\t");
+    tspecials = ( "(" | ")" | "<" | ">" | "@" | ","
+                | ";" | ":" | "/" | "[" | "]" | "?"
+                | "=" | "{" | "}" | " " | "\t" | "\\" | "\"");
     token = (ascii -- (ctl | tspecials));
 
     # A simple URI machine
@@ -63,7 +63,7 @@
     # 
     # status_code = digit{3};
     # status_mesg = (text -- crlf)*;
-    # response_line = version lws+ status_code lws+ status_mesg lws+ crlf;
+    # response_line = version lws+ status_code lws+ status_mesg lws* crlf;
     # response = response_line header* (crlf @done);
 
 }%%
