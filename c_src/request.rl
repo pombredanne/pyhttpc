@@ -389,12 +389,12 @@ PyTypeObject RequestType = {
     0,                                          /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,                         /*tp_flags*/
     "PyHttpC Request",                          /*tp_doc*/
-    0,		                                    /*tp_traverse*/
-    0,		                                    /*tp_clear*/
-    0,		                                    /*tp_richcompare*/
-    0,		                                    /*tp_weaklistoffset*/
-    0,		                                    /*tp_iter*/
-    0,		                                    /*tp_iternext*/
+    0,                                          /*tp_traverse*/
+    0,                                          /*tp_clear*/
+    0,                                          /*tp_richcompare*/
+    0,                                          /*tp_weaklistoffset*/
+    0,                                          /*tp_iter*/
+    0,                                          /*tp_iternext*/
     Request_methods,                            /*tp_methods*/
     Request_members,                            /*tp_members*/
     0,                                          /*tp_getset*/
@@ -536,12 +536,12 @@ PyTypeObject RequestParserType = {
     0,                                          /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_ITER,  /*tp_flags*/
     "PyHttpC Request Parser",                   /*tp_doc*/
-    0,		                                    /*tp_traverse*/
-    0,		                                    /*tp_clear*/
-    0,		                                    /*tp_richcompare*/
-    0,		                                    /*tp_weaklistoffset*/
-    (getiterfunc)RequestParser_GET_ITER,		/*tp_iter*/
-    (iternextfunc)RequestParser_ITER_NEXT,		/*tp_iternext*/
+    0,                                          /*tp_traverse*/
+    0,                                          /*tp_clear*/
+    0,                                          /*tp_richcompare*/
+    0,                                          /*tp_weaklistoffset*/
+    (getiterfunc)RequestParser_GET_ITER,        /*tp_iter*/
+    (iternextfunc)RequestParser_ITER_NEXT,      /*tp_iternext*/
     RequestParser_methods,                      /*tp_methods*/
     RequestParser_members,                      /*tp_members*/
     0,                                          /*tp_getset*/
