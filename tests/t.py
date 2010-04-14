@@ -9,7 +9,7 @@ import sys
 import tempfile
 import unittest
 
-from pyhttpc import RequestReader
+from pyhttpc import RequestParser
 
 dirname = os.path.dirname(__file__)
 
@@ -25,12 +25,23 @@ class request(object):
 
             def all_at_once():
                 yield data
-            func(RequestReader(all_at_once()))
+            func(RequestParser(all_at_once()))
+
+            def line_at_a_time():
+                lines = data
+                pos = lines.find("\r\n")
+                while pos > 0:
+                    yield lines[:pos+2]
+                    lines = lines[pos+2:]
+                    pos = lines.find("\r\n")
+                if len(lines):
+                    yield lines
+            func(RequestParser(line_at_a_time()))
 
             def byte_at_a_time():
                 for d in data:
                     yield d
-            func(RequestReader(byte_at_a_time()))
+            func(RequestParser(byte_at_a_time()))
 
         run.func_name = func.func_name
         return run

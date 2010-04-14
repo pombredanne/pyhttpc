@@ -55,7 +55,9 @@ native = Feature(
             "./c_src/buffer.c",
             "./c_src/pyhttpc.c",
             "./c_src/request.c"
-        ]),
+        ],
+        extra_compile_args=["-UNDEBUG"],
+        ),
     ],
 )
 

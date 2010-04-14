@@ -4,17 +4,17 @@
 #define Py_SSIZE_T_CLEAN
 #include <Python.h>
 
-#define DEF_BUF_SIZE 1024
-#define MAX_BUF_LEN  128*1024
+#include "pyhttpc.h"
 
 typedef struct {
+    size_t      max;
     const char* pos;
     char*       buf;
     size_t      len;
     size_t      used;
 } buffer_t;
 
-buffer_t* init_buffer(void);
+buffer_t* init_buffer(size_t maxsize);
 void reinit_buffer(buffer_t* buf, const char* start);
 void free_buffer(buffer_t* buf);
 void save_buffer(buffer_t* buf, const char* end);

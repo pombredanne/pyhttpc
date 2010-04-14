@@ -4,9 +4,16 @@
 #include "pyhttpc.h"
 #include "buffer.h"
 
+enum body_func {
+    bt_error=0,
+    bt_chunked,
+    bt_length,
+    bt_eof
+};
+
 typedef struct {
     PyObject_HEAD
-    PyObject* parser;
+    struct _RequestParser* parser;
 
     PyObject*   method;
 
@@ -25,17 +32,19 @@ typedef struct {
     PyObject*   headers;
     PyObject*   hdr_name;
 
-    PyObject*   body;
+    int         body_type;
+    int         body_len;
 } Request;
 
-typedef struct {
+
+typedef struct _RequestParser {
     PyObject_HEAD
     int         cs;
     
     PyObject*   source;
     PyObject*   current;
-    const char* buffer;
-    const char* bufpos;
+    char*       buffer;
+    char*       bufpos;
     Py_ssize_t  buflen;
     
     Py_ssize_t  nread;

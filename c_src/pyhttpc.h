@@ -5,6 +5,10 @@
 #include <Python.h>
 #include "structmember.h"
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 extern PyTypeObject RequestType;
 extern PyTypeObject RequestParserType;
 

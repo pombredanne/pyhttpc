@@ -49,8 +49,8 @@
     # Headers
     
     header_name = (token -- ":")+ >mark_name %write_name;
-    header_value = lws* (any* >mark_value %write_value);
-    header = header_name ":" header_value :> crlf;
+    header_value = any* >mark_value %write_value;
+    header = header_name ":" lws* <: header_value :> crlf;
 
     # Requests
 
