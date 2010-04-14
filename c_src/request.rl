@@ -384,6 +384,7 @@ init_body(Request* request)
 int
 init_request(RequestParser* parser, Request* request)
 {
+    int started = 0;
     int status;
     char* p;
     char* pe;
@@ -392,7 +393,8 @@ init_request(RequestParser* parser, Request* request)
     do
     {
         status = fill_buffer(parser);
-        if(status != 1) return 0;
+        if(status < 0) return 0;
+        if(status == 0 && !started) return 1;
 
         cs = parser->cs;
         p = parser->bufpos;
@@ -415,7 +417,7 @@ init_request(RequestParser* parser, Request* request)
             return 0;
         }
     }
-    
+   
     if(!init_body(request)) return 0;
 
     return 1;
@@ -459,7 +461,14 @@ Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 
     self->hdr_name = NULL;
 
-    if(!init_request(self->parser, self)) goto error;
+    if(!init_request(self->parser, self))
+    {
+        if(!PyErr_Occurred())
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Unknown error");
+        }
+        goto error;
+    }
 
     goto success;
 
@@ -632,7 +641,11 @@ RequestParser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     int cs = 0;
     
     self = (RequestParser*) type->tp_alloc(type, 0);
-    if(self == NULL) goto error;
+    if(self == NULL)
+    {
+        PyErr_NoMemory();
+        goto error;
+    }
 
     if(!PyArg_ParseTuple(args, "O", &src)) goto error;
     if(!PyIter_Check(src))
@@ -703,15 +716,20 @@ PyObject*
 RequestParser_ITER_NEXT(RequestParser* self)
 {
     PyObject* tpl = NULL;
-    PyObject* req = NULL;
+    Request* req = NULL;
     
     tpl = Py_BuildValue("(O)", self);
     if(tpl == NULL) return NULL;
 
-    req = PyObject_CallObject((PyObject*) &RequestType, tpl);
+    req = (Request*) PyObject_CallObject((PyObject*) &RequestType, tpl);
+    if(req != NULL && req->method == NULL)
+    {
+        Py_DECREF(req);
+        req = NULL;
+    }
 
     Py_XDECREF(tpl);
-    return req;
+    return (PyObject*) req;
 }
 
 static PyMemberDef

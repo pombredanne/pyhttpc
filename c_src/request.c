@@ -510,6 +510,7 @@ init_body(Request* request)
 int
 init_request(RequestParser* parser, Request* request)
 {
+    int started = 0;
     int status;
     char* p;
     char* pe;
@@ -518,14 +519,15 @@ init_request(RequestParser* parser, Request* request)
     do
     {
         status = fill_buffer(parser);
-        if(status != 1) return 0;
+        if(status < 0) return 0;
+        if(status == 0 && !started) return 1;
 
         cs = parser->cs;
         p = parser->bufpos;
         pe = parser->buffer + parser->buflen;
 
         
-#line 529 "./c_src/request.c"
+#line 531 "./c_src/request.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -734,7 +736,7 @@ _match:
         {p++; goto _out; }
     }
 	break;
-#line 738 "./c_src/request.c"
+#line 740 "./c_src/request.c"
 		}
 	}
 
@@ -747,7 +749,7 @@ _again:
 	_out: {}
 	}
 
-#line 402 "./c_src/request.rl"
+#line 404 "./c_src/request.rl"
 
         parser->cs = cs;
         parser->bufpos = p;
@@ -764,7 +766,7 @@ _again:
             return 0;
         }
     }
-    
+   
     if(!init_body(request)) return 0;
 
     return 1;
@@ -808,7 +810,14 @@ Request_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 
     self->hdr_name = NULL;
 
-    if(!init_request(self->parser, self)) goto error;
+    if(!init_request(self->parser, self))
+    {
+        if(!PyErr_Occurred())
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Unknown error");
+        }
+        goto error;
+    }
 
     goto success;
 
@@ -981,7 +990,11 @@ RequestParser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     int cs = 0;
     
     self = (RequestParser*) type->tp_alloc(type, 0);
-    if(self == NULL) goto error;
+    if(self == NULL)
+    {
+        PyErr_NoMemory();
+        goto error;
+    }
 
     if(!PyArg_ParseTuple(args, "O", &src)) goto error;
     if(!PyIter_Check(src))
@@ -1020,12 +1033,12 @@ RequestParser_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     }
 
     
-#line 1024 "./c_src/request.c"
+#line 1037 "./c_src/request.c"
 	{
 	cs = http_req_parser_start;
 	}
 
-#line 674 "./c_src/request.rl"
+#line 687 "./c_src/request.rl"
     self->cs = cs;
 
     goto success;
@@ -1058,15 +1071,20 @@ PyObject*
 RequestParser_ITER_NEXT(RequestParser* self)
 {
     PyObject* tpl = NULL;
-    PyObject* req = NULL;
+    Request* req = NULL;
     
     tpl = Py_BuildValue("(O)", self);
     if(tpl == NULL) return NULL;
 
-    req = PyObject_CallObject((PyObject*) &RequestType, tpl);
+    req = (Request*) PyObject_CallObject((PyObject*) &RequestType, tpl);
+    if(req != NULL && req->method == NULL)
+    {
+        Py_DECREF(req);
+        req = NULL;
+    }
 
     Py_XDECREF(tpl);
-    return req;
+    return (PyObject*) req;
 }
 
 static PyMemberDef
